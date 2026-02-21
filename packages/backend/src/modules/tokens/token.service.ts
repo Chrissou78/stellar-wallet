@@ -228,14 +228,38 @@ export class TokenService {
       assetType: b.asset_type,
     }));
 
+    // Pre-fetch the native XLM token row once (for its tomlImage etc.)
+    const [xlmTokenMeta] = await db
+      .select()
+      .from(tokens)
+      .where(
+        and(eq(tokens.assetCode, "XLM"), eq(tokens.assetType, "native"))
+      )
+      .limit(1);
+
     const enriched = await Promise.all(
       balances.map(async (b) => {
-        if (!b.assetIssuer) {
+        if (b.assetType === "native" || !b.assetIssuer) {
           return {
-            ...b,
-            name: "Stellar Lumens",
-            symbol: "XLM",
-            isNative: true,
+            assetCode: "XLM",
+            assetIssuer: null,
+            balance: b.balance,
+            assetType: "native",
+            token: xlmTokenMeta
+              ? {
+                  tomlName: xlmTokenMeta.tomlName || "Stellar Lumens",
+                  tomlImage: xlmTokenMeta.tomlImage || null,
+                  domain: xlmTokenMeta.homeDomain || "stellar.org",
+                  isVerified: xlmTokenMeta.isVerified ?? true,
+                  ratingAverage: xlmTokenMeta.ratingAverage ?? "10.0",
+                }
+              : {
+                  tomlName: "Stellar Lumens",
+                  tomlImage: null,
+                  domain: "stellar.org",
+                  isVerified: true,
+                  ratingAverage: "10.0",
+                },
             isFavorite: false,
             isHidden: false,
           };
@@ -266,15 +290,26 @@ export class TokenService {
           : [null];
 
         return {
-          ...b,
-          ...(tokenMeta || {}),
+          assetCode: b.assetCode,
+          assetIssuer: b.assetIssuer,
+          balance: b.balance,
+          assetType: b.assetType,
+          token: tokenMeta
+            ? {
+                tomlName: tokenMeta.tomlName || "",
+                tomlImage: tokenMeta.tomlImage || null,
+                domain: tokenMeta.homeDomain || "",
+                isVerified: tokenMeta.isVerified ?? false,
+                ratingAverage: tokenMeta.ratingAverage ?? null,
+              }
+            : undefined,
           isFavorite: prefs?.isFavorite ?? false,
           isHidden: prefs?.isHidden ?? false,
         };
       })
     );
 
-    return enriched.filter((t) => !('isHidden' in t && t.isHidden))
+    return enriched.filter((t) => !t.isHidden);
   }
 
   // ─── Toggle favorite ───

@@ -10,7 +10,7 @@ const KNOWN_TOKENS = [
     assetIssuer: null,
     tomlName: "Stellar Lumens",
     tomlOrg: "Stellar Development Foundation",
-    tomlImage: "https://assets.stellar.org/icons/xlm.png",
+    tomlImage: "https://cryptologos.cc/logos/stellar-xlm-logo.png",
     ratingAverage: "10.0",
     isVerified: true,
     isFeatured: true,
