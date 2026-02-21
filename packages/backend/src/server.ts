@@ -6,6 +6,8 @@ import { config } from "./config/index.js";
 import { TokenService } from "./modules/tokens/token.service";
 import { SwapService } from "./modules/swap/swap.service";
 import { runTokenIndexer } from "./jobs/token-indexer";
+import { syncTomlImages } from "./lib/toml-sync.js";
+
 
 const app = Fastify({ logger: true });
 const tokenService = new TokenService();
@@ -233,13 +235,15 @@ async function bootstrap() {
   // Start
   // ═══════════════════════════════════════
   await app.listen({ port: config.PORT, host: "0.0.0.0" });
+  syncTomlImages().catch(console.error);
   console.log(`\n  Stellar Wallet API running on http://localhost:${config.PORT}`);
   console.log(`  Network: ${config.STELLAR_NETWORK}`);
   console.log(`  Horizon: ${config.HORIZON_URL}\n`);
 
   // Run token indexer on startup, then every 15 min
   runTokenIndexer().catch(console.error);
-  setInterval(() => runTokenIndexer().catch(console.error), 15 * 60 * 1000);
+  setInterval(() => runTokenIndexer().catch(console.error), 15 * 60 * 1000); // Every 15 minutes
+  setInterval(() => {syncTomlImages().catch(console.error);}, 6 * 60 * 60 * 1000); // Every 6 hours
 }
 
 bootstrap().catch(console.error);

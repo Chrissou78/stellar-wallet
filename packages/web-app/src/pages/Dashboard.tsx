@@ -47,7 +47,7 @@ export default function DashboardPage() {
                 className="flex items-center justify-between bg-stellar-card border border-stellar-border rounded-xl px-5 py-4 hover:border-stellar-blue/50 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <TokenIcon code={b.assetCode} image={b.token?.tomlImage} />
+                 <TokenIcon code={b.assetCode} image={b.token?.tomlImage} size={36} />
                   <div>
                     <p className="font-medium text-white">{b.assetCode}</p>
                     <p className="text-xs text-stellar-muted">

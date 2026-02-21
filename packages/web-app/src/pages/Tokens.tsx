@@ -113,7 +113,7 @@ export default function TokensPage() {
               className="flex items-center justify-between bg-stellar-card border border-stellar-border rounded-xl px-5 py-4 hover:border-stellar-blue/50 transition-colors"
             >
               <div className="flex items-center gap-4">
-                <TokenIcon code={t.assetCode} image={t.tomlImage} />
+                <TokenIcon code={t.assetCode} image={t.tomlImage} size={36} />
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-white">{t.assetCode}</p>
