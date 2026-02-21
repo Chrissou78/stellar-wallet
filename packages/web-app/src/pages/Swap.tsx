@@ -28,7 +28,6 @@ export default function SwapPage() {
   const publicKey = useWalletStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.publicKey ?? null
   );
-  const getSecretKey = useWalletStore((s) => s.getSecretKey);
   const network = useWalletStore((s) => s.network);
 
   const { data: balances } = useBalances();
