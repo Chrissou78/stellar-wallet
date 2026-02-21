@@ -18,6 +18,12 @@ interface TokenOption {
   balance?: string;
 }
 
+interface SwapQuote {
+  estimatedReceive?: string;
+  rate?: string;
+  path?: { asset_code?: string }[];
+}
+
 export default function SwapPage() {
   const publicKey = useWalletStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.publicKey ?? null
@@ -87,19 +93,17 @@ export default function SwapPage() {
     return options;
   }, [balances, featuredRaw]);
 
-  // Tokens with balance (for "From" — you can only swap what you hold)
   const fromOptions = useMemo(
     () => tokenOptions.filter((t) => t.balance != null && parseFloat(t.balance) > 0),
     [tokenOptions]
   );
 
-  // All tokens for "To"
   const toOptions = useMemo(
     () => tokenOptions.filter((t) => !(t.code === fromToken?.code && t.issuer === fromToken?.issuer)),
     [tokenOptions, fromToken]
   );
 
-  // Set defaults
+  // Set default "from" to XLM
   useMemo(() => {
     if (!fromToken && fromOptions.length > 0) {
       const xlm = fromOptions.find((t) => t.isNative);
@@ -112,16 +116,18 @@ export default function SwapPage() {
     data: quote,
     isLoading: quoteLoading,
     error: quoteError,
-  } = useQuery({
+  } = useQuery<SwapQuote>({
     queryKey: ["swap-quote", fromToken?.code, fromToken?.issuer, toToken?.code, toToken?.issuer, amount],
-    queryFn: () =>
-      swapApi.quote({
+    queryFn: async () => {
+      const result = await swapApi.quote({
         fromCode: fromToken!.code,
         fromIssuer: fromToken!.issuer || "",
         toCode: toToken!.code,
         toIssuer: toToken!.issuer || "",
         amount,
-      }),
+      });
+      return result as SwapQuote;
+    },
     enabled: !!fromToken && !!toToken && !!amount && parseFloat(amount) > 0,
     refetchInterval: 15_000,
   });
@@ -195,9 +201,7 @@ export default function SwapPage() {
       tx.sign(keypair);
       await server.submitTransaction(tx);
 
-      toast.success(
-        `Swapped ${amount} ${fromToken!.code} → ${toToken!.code}`
-      );
+      toast.success(`Swapped ${amount} ${fromToken!.code} → ${toToken!.code}`);
       setAmount("");
     } catch (err: any) {
       console.error("Swap error:", err);
@@ -214,9 +218,7 @@ export default function SwapPage() {
         t.name.toLowerCase().includes(query.toLowerCase())
     );
 
-  const fromBalance = fromToken?.balance
-    ? parseFloat(fromToken.balance)
-    : 0;
+  const fromBalance = fromToken?.balance ? parseFloat(fromToken.balance) : 0;
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -260,7 +262,6 @@ export default function SwapPage() {
           />
         </div>
 
-        {/* From picker dropdown */}
         {showFromPicker && (
           <TokenPickerDropdown
             tokens={filterTokens(fromOptions, searchFrom)}
@@ -290,7 +291,7 @@ export default function SwapPage() {
         )}
       </div>
 
-      {/* Flip button */}
+      {/* Flip */}
       <div className="flex justify-center -my-3 relative z-10">
         <button
           onClick={flipTokens}
@@ -328,7 +329,6 @@ export default function SwapPage() {
           />
         </div>
 
-        {/* To picker dropdown */}
         {showToPicker && (
           <TokenPickerDropdown
             tokens={filterTokens(toOptions, searchTo)}
@@ -365,7 +365,7 @@ export default function SwapPage() {
             <div className="flex justify-between text-stellar-muted">
               <span>Route</span>
               <span className="text-white">
-                {fromToken.code} → {quote.path.map((p: any) => p.asset_code || "XLM").join(" → ")} → {toToken.code}
+                {fromToken.code} → {quote.path.map((p) => p.asset_code || "XLM").join(" → ")} → {toToken.code}
               </span>
             </div>
           )}
@@ -418,7 +418,6 @@ export default function SwapPage() {
       {showPin && (
         <PinModal
           title="Confirm Swap"
-          subtitle={`Swap ${amount} ${fromToken?.code} for ~${quote?.estimatedReceive} ${toToken?.code}`}
           onSubmit={executeSwap}
           onClose={() => setShowPin(false)}
         />
@@ -427,7 +426,7 @@ export default function SwapPage() {
   );
 }
 
-/* ─── Shared sub-components ─── */
+/* ─── Sub-components ─── */
 
 function TokenPickerButton({
   selected,
@@ -462,7 +461,7 @@ function TokenPickerDropdown({
   search,
   onSearch,
   onSelect,
-  onClose,
+  onClose: _onClose,
   showBalances,
 }: {
   tokens: TokenOption[];
