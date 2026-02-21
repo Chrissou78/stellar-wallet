@@ -337,7 +337,7 @@ export default function TokenDetailPage() {
 
       {/* ─── Liquidity Pools ─────────────────────────────── */}
       {token.liquidityPools && token.liquidityPools.length > 0 && (
-        <LiquidityPools pools={token.liquidityPools} assetCode={token.assetCode} />
+        <LiquidityPools pools={token.liquidityPools} />
       )}
 
       {/* PIN Modal */}
