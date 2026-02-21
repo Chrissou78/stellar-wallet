@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Custom theme overrides */
+@theme {
+  --color-stellar-blue: #3e1bdb;
+  --color-stellar-purple: #7c3aed;
+  --color-stellar-dark: #0f0b1a;
+  --color-stellar-card: #1a1425;
+  --color-stellar-border: #2d2640;
+  --color-stellar-text: #e2dff0;
+  --color-stellar-muted: #8b83a3;
+  --color-stellar-success: #22c55e;
+  --color-stellar-danger: #ef4444;
+}
+
+body {
+  @apply bg-stellar-dark text-stellar-text min-h-screen;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
