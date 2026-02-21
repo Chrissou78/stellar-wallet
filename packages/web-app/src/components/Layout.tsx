@@ -14,25 +14,23 @@ import { useWalletStore } from "../store/wallet";
 import AccountSwitcher from "./AccountSwitcher";
 import clsx from "clsx";
 
-const { t } = useTranslation();
-const NAV = [
-  { to: "/dashboard", label: t("nav.dashboard"), icon: Home },
-  { to: "/tokens", label: t("nav.tokens"), icon: Coins },
-  { to: "/send", label: t("nav.send"), icon: Send },
-  { to: "/receive", label: t("nav.receive"), icon: QrCode },
-  { to: "/swap", label: t("nav.swap"), icon: ArrowLeftRight },
-  { to: "/history", label: t("nav.history"), icon: HistoryIcon },
-  { to: "/settings", label: t("nav.settings"), icon: SettingsIcon },
-];
-
 export default function Layout() {
+  const { t } = useTranslation();
   const lock = useWalletStore((s) => s.lock);
+
+  const NAV = [
+    { to: "/dashboard", label: t("nav.dashboard"), icon: Home },
+    { to: "/tokens", label: t("nav.tokens"), icon: Coins },
+    { to: "/send", label: t("nav.send"), icon: Send },
+    { to: "/receive", label: t("nav.receive"), icon: QrCode },
+    { to: "/swap", label: t("nav.swap"), icon: ArrowLeftRight },
+    { to: "/history", label: t("nav.history"), icon: HistoryIcon },
+    { to: "/settings", label: t("nav.settings"), icon: SettingsIcon },
+  ];
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className="w-64 border-r border-stellar-border bg-stellar-card flex flex-col">
-        {/* Account Switcher */}
         <div className="p-3 border-b border-stellar-border">
           <AccountSwitcher />
         </div>
@@ -63,12 +61,11 @@ export default function Layout() {
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-stellar-muted hover:text-white rounded-lg hover:bg-white/5 transition-colors"
           >
             <Lock size={16} />
-            Lock Wallet
+            {t("settings.lock", "Lock Wallet")}
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-8">
           <Outlet />
