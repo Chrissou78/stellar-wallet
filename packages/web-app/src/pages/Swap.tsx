@@ -152,7 +152,8 @@ export default function SwapPage() {
     setSubmitting(true);
 
     try {
-      const secret = await getSecretKey(pin);
+      await useWalletStore.getState().unlock(pin);
+      const secret = useWalletStore.getState().getSecretKey();
       if (!secret) {
         toast.error("Invalid PIN");
         setSubmitting(false);
@@ -419,7 +420,7 @@ export default function SwapPage() {
         <PinModal
           title="Confirm Swap"
           onSubmit={executeSwap}
-          onClose={() => setShowPin(false)}
+          onCancel={() => setShowPin(false)}
         />
       )}
     </div>
