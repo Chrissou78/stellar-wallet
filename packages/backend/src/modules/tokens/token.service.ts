@@ -236,6 +236,8 @@ export class TokenService {
             name: "Stellar Lumens",
             symbol: "XLM",
             isNative: true,
+            isFavorite: false,
+            isHidden: false,
           };
         }
 
@@ -272,7 +274,7 @@ export class TokenService {
       })
     );
 
-    return enriched.filter((t) => !t.isHidden);
+    return enriched.filter((t) => !('isHidden' in t && t.isHidden))
   }
 
   // ─── Toggle favorite ───

@@ -1,6 +1,6 @@
 import * as StellarSdk from "@stellar/stellar-sdk";
 import { stellarClient } from "../../lib/stellar-client";
-import { redis } from "../../config/database";
+import { cache } from "../../lib/cache.js";
 
 interface SwapQuote {
   source: string;                // "SDEX" | "AMM" | "SOROSWAP" | "PATH"
