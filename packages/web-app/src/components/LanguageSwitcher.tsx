@@ -7,15 +7,14 @@ export default function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  const current = supportedLanguages.find((l) => l.code === i18n.language) ||
+  // i18n.language might be "fr-FR" or "zu-ZA", match against base code
+  const resolvedCode = i18n.language?.split("-")[0] || "en";
+  const current = supportedLanguages.find((l) => l.code === resolvedCode) ||
+    supportedLanguages.find((l) => l.code === i18n.language) ||
     supportedLanguages[0];
 
   const changeLanguage = (code: string) => {
     i18n.changeLanguage(code);
-    // Set RTL direction for Arabic
-    const lang = supportedLanguages.find((l) => l.code === code);
-    document.documentElement.dir = "dir" in (lang || {}) ? "rtl" : "ltr";
-    document.documentElement.lang = code;
     setOpen(false);
   };
 
@@ -39,18 +38,18 @@ export default function LanguageSwitcher() {
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-2 w-full bg-stellar-card border border-stellar-border rounded-xl shadow-2xl overflow-hidden">
+        <div className="absolute z-50 mt-2 w-full bg-stellar-card border border-stellar-border rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
           {supportedLanguages.map((lang) => (
             <button
               key={lang.code}
               onClick={() => changeLanguage(lang.code)}
               className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors ${
-                lang.code === i18n.language ? "bg-stellar-blue/10" : ""
+                lang.code === resolvedCode ? "bg-stellar-blue/10" : ""
               }`}
             >
               <span className="text-xl">{lang.flag}</span>
               <span className="text-white text-sm">{lang.name}</span>
-              {lang.code === i18n.language && (
+              {lang.code === resolvedCode && (
                 <span className="ml-auto text-xs text-stellar-blue">✓</span>
               )}
             </button>
