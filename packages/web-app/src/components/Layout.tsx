@@ -1,26 +1,28 @@
+import { useTranslation } from "react-i18next";
 import { Outlet, NavLink } from "react-router-dom";
 import {
-  LayoutDashboard,
   Coins,
   Send,
   QrCode,
   ArrowLeftRight,
-  Clock,
-  Settings,
   Lock,
+  Home,
+  History as HistoryIcon,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { useWalletStore } from "../store/wallet";
 import AccountSwitcher from "./AccountSwitcher";
 import clsx from "clsx";
 
+const { t } = useTranslation();
 const NAV = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/tokens", icon: Coins, label: "Tokens" },
-  { to: "/send", icon: Send, label: "Send" },
-  { to: "/receive", icon: QrCode, label: "Receive" },
-  { to: "/swap", icon: ArrowLeftRight, label: "Swap" },
-  { to: "/history", icon: Clock, label: "History" },
-  { to: "/settings", icon: Settings, label: "Settings" },
+  { to: "/dashboard", label: t("nav.dashboard"), icon: Home },
+  { to: "/tokens", label: t("nav.tokens"), icon: Coins },
+  { to: "/send", label: t("nav.send"), icon: Send },
+  { to: "/receive", label: t("nav.receive"), icon: QrCode },
+  { to: "/swap", label: t("nav.swap"), icon: ArrowLeftRight },
+  { to: "/history", label: t("nav.history"), icon: HistoryIcon },
+  { to: "/settings", label: t("nav.settings"), icon: SettingsIcon },
 ];
 
 export default function Layout() {

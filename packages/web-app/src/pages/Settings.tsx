@@ -1,4 +1,6 @@
+import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useWalletStore } from "../store/wallet";
 import { useNavigate } from "react-router-dom";
 import PinModal from "../components/PinModal";
@@ -6,6 +8,7 @@ import { toast } from "sonner";
 import { Copy, Check, LogOut, Eye, EyeOff, Shield } from "lucide-react";
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const accounts = useWalletStore((s) => s.accounts);
   const activeAccountId = useWalletStore((s) => s.activeAccountId);
   const network = useWalletStore((s) => s.network);
@@ -32,12 +35,11 @@ export default function SettingsPage() {
     if (!revealedKey) return;
     navigator.clipboard.writeText(revealedKey);
     setCopiedSk(true);
-    toast.success("Secret key copied to clipboard");
+    toast.success(t("common.copied"));
     setTimeout(() => setCopiedSk(false), 2000);
   };
 
   const handleReveal = () => {
-    // Always require PIN, even if previously unlocked
     setShowPin(true);
   };
 
@@ -47,7 +49,7 @@ export default function SettingsPage() {
   };
 
   const handleLogout = () => {
-    if (confirm("Are you sure? This will remove ALL wallets and local data.")) {
+    if (confirm(t("settings.logoutConfirm"))) {
       logout();
       navigate("/");
     }
@@ -55,23 +57,27 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-lg">
-      <h1 className="text-2xl font-bold text-white">Settings</h1>
+      <h1 className="text-2xl font-bold text-white">{t("settings.title")}</h1>
 
       {/* Account Info */}
       <div className="bg-stellar-card border border-stellar-border rounded-2xl p-6 space-y-4">
         <h2 className="text-sm font-semibold text-stellar-muted uppercase tracking-wider">
-          Account
+          {t("settings.account", "Account")}
         </h2>
 
         {active && (
           <div>
-            <label className="block text-sm text-stellar-muted mb-1">Wallet Name</label>
+            <label className="block text-sm text-stellar-muted mb-1">
+              {t("onboarding.walletName")}
+            </label>
             <p className="text-sm text-white">{active.name}</p>
           </div>
         )}
 
         <div>
-          <label className="block text-sm text-stellar-muted mb-1">Public Key</label>
+          <label className="block text-sm text-stellar-muted mb-1">
+            {t("settings.publicKey", "Public Key")}
+          </label>
           <div className="flex items-center gap-2">
             <code className="flex-1 px-3 py-2 rounded-lg bg-stellar-dark border border-stellar-border text-xs text-white break-all">
               {publicKey}
@@ -79,7 +85,7 @@ export default function SettingsPage() {
             <button
               onClick={handleCopyPublicKey}
               className="p-2 rounded-lg border border-stellar-border hover:bg-white/5 shrink-0"
-              title="Copy public key"
+              title={t("common.copy")}
             >
               {copiedPk ? (
                 <Check size={16} className="text-stellar-success" />
@@ -91,25 +97,31 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-stellar-muted mb-1">Network</label>
-          <p className="text-sm text-white capitalize">{network}</p>
+          <label className="block text-sm text-stellar-muted mb-1">
+            {t("settings.network")}
+          </label>
+          <p className="text-sm text-white capitalize">{t(`settings.${network}`)}</p>
         </div>
+      </div>
+
+      {/* Language */}
+      <div className="bg-stellar-card border border-stellar-border rounded-2xl p-6">
+        <LanguageSwitcher />
       </div>
 
       {/* Security */}
       <div className="bg-stellar-card border border-stellar-border rounded-2xl p-6 space-y-4">
         <h2 className="text-sm font-semibold text-stellar-muted uppercase tracking-wider">
-          Security
+          {t("settings.security", "Security")}
         </h2>
 
-        {/* Reveal / Hide secret key */}
         {!revealedKey ? (
           <button
             onClick={handleReveal}
             className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
           >
             <Eye size={16} />
-            Reveal Secret Key
+            {t("settings.revealSecret")}
           </button>
         ) : (
           <div className="space-y-3">
@@ -117,7 +129,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2">
                 <Shield size={14} className="text-stellar-danger" />
                 <p className="text-xs text-stellar-danger font-semibold">
-                  Never share your secret key with anyone!
+                  {t("settings.secretWarning")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -127,7 +139,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleCopySecretKey}
                   className="p-2 rounded-lg border border-stellar-danger/30 hover:bg-stellar-danger/20 transition-colors shrink-0"
-                  title="Copy secret key"
+                  title={t("common.copy")}
                 >
                   {copiedSk ? (
                     <Check size={14} className="text-stellar-success" />
@@ -142,25 +154,24 @@ export default function SettingsPage() {
               className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
             >
               <EyeOff size={16} />
-              Hide Secret Key
+              {t("settings.hideSecret", "Hide Secret Key")}
             </button>
           </div>
         )}
 
-        {/* Logout */}
         <button
           onClick={handleLogout}
           className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-danger/30 text-stellar-danger hover:bg-stellar-danger/10 transition-colors text-sm"
         >
           <LogOut size={16} />
-          Logout &amp; Clear All Wallets
+          {t("settings.logout")}
         </button>
       </div>
 
-      {/* PIN Modal — always required for reveal */}
+      {/* PIN Modal */}
       {showPin && (
         <PinModal
-          title="Enter PIN to Reveal Secret Key"
+          title={t("settings.enterPinToReveal")}
           onSubmit={async (pin) => {
             await unlock(pin);
             const sk = getSecretKey();
