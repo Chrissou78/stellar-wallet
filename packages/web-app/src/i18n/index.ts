@@ -22,15 +22,13 @@ import sn from "./locales/sn.json";
 import sw from "./locales/sw.json";
 
 export const supportedLanguages = [
-  // International
   { code: "en", name: "English", flag: "🇬🇧" },
   { code: "fr", name: "Français", flag: "🇫🇷" },
   { code: "es", name: "Español", flag: "🇪🇸" },
   { code: "pt", name: "Português", flag: "🇲🇿" },
-  { code: "ar", name: "العربية", flag: "🇸🇦", dir: "rtl" },
+  { code: "ar", name: "العربية", flag: "🇸🇦", dir: "rtl" as const },
   { code: "zh", name: "中文", flag: "🇨🇳" },
   { code: "sw", name: "Kiswahili", flag: "🇹🇿" },
-  // South Africa official languages
   { code: "af", name: "Afrikaans", flag: "🇿🇦" },
   { code: "zu", name: "isiZulu", flag: "🇿🇦" },
   { code: "xh", name: "isiXhosa", flag: "🇿🇦" },
@@ -41,9 +39,18 @@ export const supportedLanguages = [
   { code: "ss", name: "siSwati", flag: "🇸🇿" },
   { code: "ve", name: "Tshivenda", flag: "🇿🇦" },
   { code: "nr", name: "isiNdebele", flag: "🇿🇦" },
-  // Regional
   { code: "sn", name: "chiShona", flag: "🇿🇼" },
-] as const;
+];
+
+const supportedLngCodes = supportedLanguages.map((l) => l.code);
+
+function updateDocDirection(lng: string) {
+  const lang = supportedLanguages.find((l) => l.code === lng);
+  if (typeof document !== "undefined") {
+    document.documentElement.dir = lang && "dir" in lang ? "rtl" : "ltr";
+    document.documentElement.lang = lng;
+  }
+}
 
 i18n
   .use(LanguageDetector)
@@ -69,15 +76,22 @@ i18n
       nr: { translation: nr },
       sn: { translation: sn },
     },
+    supportedLngs: supportedLngCodes,
+    nonExplicitSupportedLngs: true,
     fallbackLng: "en",
     interpolation: {
       escapeValue: false,
     },
     detection: {
-      order: ["localStorage", "navigator"],
+      order: ["localStorage", "navigator", "htmlTag"],
       caches: ["localStorage"],
       lookupLocalStorage: "stellar-wallet-lang",
     },
+  })
+  .then(() => {
+    updateDocDirection(i18n.language);
   });
+
+i18n.on("languageChanged", updateDocDirection);
 
 export default i18n;
