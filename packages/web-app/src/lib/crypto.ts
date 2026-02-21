@@ -4,11 +4,20 @@ const ITERATIONS = 600_000;
 
 async function deriveKey(pin: string, salt: Uint8Array): Promise<CryptoKey> {
   const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, [
-    "deriveKey",
-  ]);
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(pin),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: ITERATIONS, hash: "SHA-256" },
+    {
+      name: "PBKDF2",
+      salt: new Uint8Array(salt.buffer, salt.byteOffset, salt.byteLength),
+      iterations: ITERATIONS,
+      hash: "SHA-256",
+    },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,
@@ -21,8 +30,11 @@ export async function encryptSecret(secretKey: string, pin: string): Promise<str
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
   const key = await deriveKey(pin, salt);
   const enc = new TextEncoder();
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(secretKey));
-  // Concatenate salt + iv + ciphertext and base64-encode
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: new Uint8Array(iv.buffer, iv.byteOffset, iv.byteLength) },
+    key,
+    enc.encode(secretKey)
+  );
   const combined = new Uint8Array(salt.length + iv.length + new Uint8Array(ciphertext).length);
   combined.set(salt, 0);
   combined.set(iv, salt.length);
@@ -36,6 +48,10 @@ export async function decryptSecret(encrypted: string, pin: string): Promise<str
   const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
   const ciphertext = combined.slice(SALT_LENGTH + IV_LENGTH);
   const key = await deriveKey(pin, salt);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(iv.buffer, iv.byteOffset, iv.byteLength) },
+    key,
+    new Uint8Array(ciphertext.buffer, ciphertext.byteOffset, ciphertext.byteLength)
+  );
   return new TextDecoder().decode(decrypted);
 }

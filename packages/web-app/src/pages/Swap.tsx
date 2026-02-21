@@ -3,7 +3,6 @@ import { useBalances } from "../hooks/useBalances";
 import { useWalletStore } from "../store/wallet";
 import { swapApi, txApi } from "../lib/api";
 import { signXdr } from "../lib/stellar";
-import { NETWORK_PASSPHRASE } from "../lib/constants";
 import PinModal from "../components/PinModal";
 import TokenIcon from "../components/TokenIcon";
 import { ArrowDownUp, Loader2 } from "lucide-react";

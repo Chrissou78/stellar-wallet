@@ -30,7 +30,9 @@ import {
 
 export default function TokenDetailPage() {
   const { code, issuer } = useParams<{ code: string; issuer: string }>();
-  const publicKey = useWalletStore((s) => s.publicKey)!;
+  const publicKey = useWalletStore(
+    (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.publicKey ?? null
+  )!;
   const isUnlocked = useWalletStore((s) => s.isUnlocked);
   const getSecretKey = useWalletStore((s) => s.getSecretKey);
   const unlock = useWalletStore((s) => s.unlock);
@@ -191,7 +193,7 @@ export default function TokenDetailPage() {
         <StatCard
           icon={<Star size={18} className="text-yellow-400" />}
           label="Rating"
-          value={token.ratingAverage != null ? token.ratingAverage.toFixed(1) + " / 10" : "—"}
+          value={token.ratingAverage != null ? Number(token.ratingAverage).toFixed(1) + " / 10" : "—"}
         />
         <StatCard
           icon={<Users size={18} className="text-stellar-blue" />}
@@ -388,8 +390,8 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-function RatingBadge({ label, value }: { label: string; value?: number }) {
-  const v = value ?? 0;
+function RatingBadge({ label, value }: { label: string; value?: number | string }) {
+  const v = Number(value ?? 0);
   const color =
     v >= 8 ? "text-stellar-success bg-stellar-success/15" :
     v >= 5 ? "text-yellow-400 bg-yellow-400/15" :

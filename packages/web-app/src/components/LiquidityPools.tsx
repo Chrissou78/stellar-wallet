@@ -13,10 +13,9 @@ interface Pool {
 
 interface LiquidityPoolsProps {
   pools: Pool[];
-  assetCode: string;
 }
 
-export default function LiquidityPools({ pools, assetCode }: LiquidityPoolsProps) {
+export default function LiquidityPools({ pools }: LiquidityPoolsProps) {
   if (pools.length === 0) return null;
 
   return (

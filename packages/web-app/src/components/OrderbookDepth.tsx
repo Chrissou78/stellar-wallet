@@ -121,11 +121,11 @@ export default function OrderbookDepth({ orderbook, assetCode }: OrderbookProps)
                 color: "#e2dff0",
                 fontSize: 12,
               }}
-              formatter={(value: number, name: string) => [
-                formatCompact(value),
+              formatter={(value: any, name: any) => [
+                formatCompact(Number(value)),
                 name === "bidDepth" ? "Bid Depth" : "Ask Depth",
               ]}
-              labelFormatter={(label: number) => `Price: ${label.toFixed(7)}`}
+              labelFormatter={(label: any) => `Price: ${Number(label).toFixed(7)}`}
             />
             <Area
               type="stepAfter"

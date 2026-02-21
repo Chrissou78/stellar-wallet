@@ -9,7 +9,6 @@ export default function SettingsPage() {
   const accounts = useWalletStore((s) => s.accounts);
   const activeAccountId = useWalletStore((s) => s.activeAccountId);
   const network = useWalletStore((s) => s.network);
-  const isUnlocked = useWalletStore((s) => s.isUnlocked);
   const getSecretKey = useWalletStore((s) => s.getSecretKey);
   const unlock = useWalletStore((s) => s.unlock);
   const logout = useWalletStore((s) => s.logout);
