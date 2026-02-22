@@ -19,4 +19,15 @@ export default defineConfig({
       "@popup": path.resolve(__dirname, "src/popup"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          stellar: ["@stellar/stellar-sdk"],
+          vendor: ["react", "react-dom", "react-router-dom", "zustand", "@tanstack/react-query"],
+        },
+      },
+    },
+  },
 });
