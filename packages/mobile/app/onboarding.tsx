@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { useWalletStore } from "../src/store/wallet";
+import { useWalletStore } from "../src/shared/store/wallet";
 
 export default function Onboarding() {
   const { t } = useTranslation();

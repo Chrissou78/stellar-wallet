@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { tokenApi } from "../lib/api";
 import { useWalletStore } from "../store/wallet";
+import { fetchBalancesFromHorizon } from "../lib/horizon";
 
 export interface TokenBalance {
   assetCode: string;
@@ -52,11 +53,17 @@ export function useBalances() {
   const publicKey = useWalletStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.publicKey ?? null
   );
+  const network = useWalletStore((s) => s.network);
 
   return useQuery<TokenBalance[]>({
-    queryKey: ["balances", publicKey],
+    queryKey: ["balances", publicKey, network],
     queryFn: async () => {
-      const raw = await tokenApi.userTokens(publicKey!);
+      if (!publicKey) return [];
+      if (network === "public") {
+        const raw = await fetchBalancesFromHorizon(publicKey, network);
+        return raw.map(normalizeBalance);
+      }
+      const raw = await tokenApi.userTokens(publicKey);
       return unwrap(raw).map(normalizeBalance);
     },
     enabled: !!publicKey,

@@ -1,5 +1,5 @@
 import { Redirect } from "expo-router";
-import { useWalletStore } from "../src/store/wallet";
+import { useWalletStore } from "../src/shared/store/wallet";
 
 export default function Index() {
   const hasAccount = useWalletStore(

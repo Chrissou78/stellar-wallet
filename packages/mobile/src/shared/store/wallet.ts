@@ -1,14 +1,13 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { generateKeypair, keypairFromSecret, fundTestnet } from "../lib/stellar";
-import { encryptSecret, decryptSecret } from "../lib/crypto";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 export interface WalletAccount {
   id: string;
   name: string;
   publicKey: string;
   encryptedSecret: string;
-  createdAt: number;
 }
 
 interface WalletState {
@@ -18,23 +17,39 @@ interface WalletState {
   isUnlocked: boolean;
   _secretKey: string | null;
 
-  // Methods
-  getPublicKey: () => string | null;
-  activeAccount: () => WalletAccount | null;
   createWallet: (name: string, pin: string) => Promise<string>;
   importWallet: (name: string, secretKey: string, pin: string) => Promise<string>;
-  switchAccount: (accountId: string) => void;
-  removeAccount: (accountId: string) => void;
-  renameAccount: (accountId: string, newName: string) => void;
+  switchAccount: (id: string) => void;
+  removeAccount: (id: string) => void;
+  renameAccount: (id: string, name: string) => void;
   unlock: (pin: string) => Promise<void>;
   lock: () => void;
   logout: () => void;
-  getSecretKey: () => string;
+  getSecretKey: () => string | null;
   setNetwork: (n: "testnet" | "public") => void;
 }
 
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// Generate keypair via backend to avoid importing stellar-base
+async function generateKeypair(): Promise<{ publicKey: string; secretKey: string }> {
+  const res = await fetch("https://stellar-wallet.onrender.com/api/v1/keypair/generate");
+  if (!res.ok) throw new Error("Failed to generate keypair");
+  return res.json();
+}
+
+// Validate and derive public key from secret via backend
+async function publicKeyFromSecret(secret: string): Promise<string> {
+  const res = await fetch("https://stellar-wallet.onrender.com/api/v1/keypair/from-secret", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ secret }),
+  });
+  if (!res.ok) throw new Error("Invalid secret key");
+  const data = await res.json();
+  return data.publicKey;
 }
 
 export const useWalletStore = create<WalletState>()(
@@ -46,39 +61,28 @@ export const useWalletStore = create<WalletState>()(
       isUnlocked: false,
       _secretKey: null,
 
-      // ─── Derived (as functions, not getters) ────────
-      getPublicKey: () => {
-        const state = get();
-        const active = state.accounts.find((a) => a.id === state.activeAccountId);
-        return active?.publicKey ?? null;
-      },
+      createWallet: async (name: string, _pin: string) => {
+        const { publicKey, secretKey } = await generateKeypair();
 
-      activeAccount: () => {
-        const state = get();
-        return state.accounts.find((a) => a.id === state.activeAccountId) ?? null;
-      },
+        const storeKey = `secret_${publicKey}`;
+        await SecureStore.setItemAsync(storeKey, secretKey);
 
-      // ─── Create ─────────────────────────────────────
-      createWallet: async (name, pin) => {
-        const { publicKey, secretKey } = generateKeypair();
-        const encrypted = await encryptSecret(secretKey, pin);
+        // Fund only on testnet
+        if (get().network === "testnet") {
+          try {
+            await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`);
+          } catch {}
+}
 
         const account: WalletAccount = {
           id: generateId(),
-          name: name || `Wallet ${get().accounts.length + 1}`,
+          name,
           publicKey,
-          encryptedSecret: encrypted,
-          createdAt: Date.now(),
+          encryptedSecret: storeKey,
         };
 
-        try {
-          await fundTestnet(publicKey);
-        } catch {
-          // Friendbot may fail
-        }
-
-        set((state) => ({
-          accounts: [...state.accounts, account],
+        set((s) => ({
+          accounts: [...s.accounts, account],
           activeAccountId: account.id,
           isUnlocked: true,
           _secretKey: secretKey,
@@ -87,26 +91,24 @@ export const useWalletStore = create<WalletState>()(
         return publicKey;
       },
 
-      // ─── Import ─────────────────────────────────────
-      importWallet: async (name, secretKey, pin) => {
-        const { publicKey } = keypairFromSecret(secretKey);
+      importWallet: async (name: string, secretKey: string, _pin: string) => {
+        const publicKey = await publicKeyFromSecret(secretKey);
 
-        if (get().accounts.some((a) => a.publicKey === publicKey)) {
-          throw new Error("This wallet is already added");
-        }
+        const existing = get().accounts.find((a) => a.publicKey === publicKey);
+        if (existing) throw new Error("Wallet already exists");
 
-        const encrypted = await encryptSecret(secretKey, pin);
+        const storeKey = `secret_${publicKey}`;
+        await SecureStore.setItemAsync(storeKey, secretKey);
 
         const account: WalletAccount = {
           id: generateId(),
-          name: name || `Imported ${get().accounts.length + 1}`,
+          name,
           publicKey,
-          encryptedSecret: encrypted,
-          createdAt: Date.now(),
+          encryptedSecret: storeKey,
         };
 
-        set((state) => ({
-          accounts: [...state.accounts, account],
+        set((s) => ({
+          accounts: [...s.accounts, account],
           activeAccountId: account.id,
           isUnlocked: true,
           _secretKey: secretKey,
@@ -115,70 +117,38 @@ export const useWalletStore = create<WalletState>()(
         return publicKey;
       },
 
-      // ─── Switch ─────────────────────────────────────
-      switchAccount: (accountId) => {
-        const account = get().accounts.find((a) => a.id === accountId);
-        if (!account) throw new Error("Account not found");
-        set({
-          activeAccountId: accountId,
-          isUnlocked: false,
-          _secretKey: null,
-        });
-      },
+      switchAccount: (id) => set({ activeAccountId: id, isUnlocked: false, _secretKey: null }),
+      removeAccount: (id) =>
+        set((s) => {
+          const accounts = s.accounts.filter((a) => a.id !== id);
+          return {
+            accounts,
+            activeAccountId: accounts.length > 0 ? accounts[0].id : null,
+            isUnlocked: false,
+            _secretKey: null,
+          };
+        }),
+      renameAccount: (id, name) =>
+        set((s) => ({
+          accounts: s.accounts.map((a) => (a.id === id ? { ...a, name } : a)),
+        })),
 
-      // ─── Remove ─────────────────────────────────────
-      removeAccount: (accountId) => {
-        const { accounts, activeAccountId } = get();
-        const remaining = accounts.filter((a) => a.id !== accountId);
-        let newActiveId = activeAccountId;
-        if (activeAccountId === accountId) {
-          newActiveId = remaining.length > 0 ? remaining[0].id : null;
-        }
-        set({
-          accounts: remaining,
-          activeAccountId: newActiveId,
-          isUnlocked: false,
-          _secretKey: null,
-        });
-      },
-
-      // ─── Rename ─────────────────────────────────────
-      renameAccount: (accountId, newName) => {
-        set((state) => ({
-          accounts: state.accounts.map((a) =>
-            a.id === accountId ? { ...a, name: newName } : a
-          ),
-        }));
-      },
-
-      // ─── Auth ───────────────────────────────────────
-      unlock: async (pin) => {
-        const account = get().activeAccount();
-        if (!account) throw new Error("No active account");
-        const secretKey = await decryptSecret(account.encryptedSecret, pin);
-        set({ isUnlocked: true, _secretKey: secretKey });
+      unlock: async (_pin: string) => {
+        const active = get().accounts.find((a) => a.id === get().activeAccountId);
+        if (!active) throw new Error("No active account");
+        const secret = await SecureStore.getItemAsync(active.encryptedSecret);
+        if (!secret) throw new Error("Invalid PIN");
+        set({ isUnlocked: true, _secretKey: secret });
       },
 
       lock: () => set({ isUnlocked: false, _secretKey: null }),
-
-      logout: () =>
-        set({
-          accounts: [],
-          activeAccountId: null,
-          isUnlocked: false,
-          _secretKey: null,
-        }),
-
-      getSecretKey: () => {
-        const sk = get()._secretKey;
-        if (!sk) throw new Error("Wallet is locked");
-        return sk;
-      },
-
+      logout: () => set({ accounts: [], activeAccountId: null, isUnlocked: false, _secretKey: null }),
+      getSecretKey: () => get()._secretKey,
       setNetwork: (n) => set({ network: n }),
     }),
     {
-      name: "stellar-wallet",
+      name: "stellar-wallet-mobile",
+      storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         accounts: state.accounts,
         activeAccountId: state.activeAccountId,

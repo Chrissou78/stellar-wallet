@@ -1,12 +1,17 @@
 import { useState } from "react";
-import { View, Text, TextInput, ScrollView, ActivityIndicator } from "react-native";
+import {
+  View, Text, TextInput, ScrollView, ActivityIndicator, TouchableOpacity, Image,
+} from "react-native";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { tokenApi } from "../../src/shared/lib/api";
-import { Search } from "lucide-react-native";
+import TokenIcon from "../../src/components/TokenIcon";
+import { Search, CheckCircle } from "lucide-react-native";
 
 export default function Tokens() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [query, setQuery] = useState("");
 
   const { data: featured, isLoading: loadingFeatured } = useQuery({
@@ -57,8 +62,11 @@ export default function Tokens() {
       ) : (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}>
           {list.map((token: any) => (
-            <View
+            <TouchableOpacity
               key={`${token.assetCode}-${token.assetIssuer || "native"}`}
+              onPress={() =>
+                router.push(`/token-detail?code=${token.assetCode}&issuer=${token.assetIssuer || "native"}`)
+              }
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -69,37 +77,29 @@ export default function Tokens() {
                 borderWidth: 1,
                 borderColor: "#1f2937",
                 marginBottom: 8,
+                gap: 12,
               }}
             >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: "#8b5cf6",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 12,
-                }}
-              >
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
-                  {(token.assetCode || "?").charAt(0)}
-                </Text>
-              </View>
+              <TokenIcon code={token.assetCode} image={token.tomlImage} size={36} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
-                  {token.assetCode}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
+                    {token.assetCode}
+                  </Text>
+                  {token.isVerified && <CheckCircle size={12} color="#10b981" />}
+                </View>
                 <Text style={{ color: "#6b7280", fontSize: 11 }}>
-                  {token.tomlName || token.homeDomain || ""}
+                  {token.tomlName || token.domain || ""}
                 </Text>
               </View>
-              {token.isVerified && (
-                <View style={{ backgroundColor: "rgba(16,185,129,0.2)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ color: "#10b981", fontSize: 10 }}>✓</Text>
+              {token.ratingAverage != null && Number(token.ratingAverage) > 0 && (
+                <View style={{ backgroundColor: "rgba(59,130,246,0.15)", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                  <Text style={{ color: "#3b82f6", fontSize: 11, fontWeight: "600" }}>
+                    ★ {Number(token.ratingAverage).toFixed(1)}
+                  </Text>
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       )}

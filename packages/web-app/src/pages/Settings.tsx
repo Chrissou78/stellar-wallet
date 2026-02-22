@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import PinModal from "../components/PinModal";
 import { toast } from "sonner";
 import { Copy, Check, LogOut, Eye, EyeOff, Shield } from "lucide-react";
+import NetworkSwitcher from "../components/NetworkSwitcher";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -67,10 +68,10 @@ export default function SettingsPage() {
 
         {active && (
           <div>
-            <label className="block text-sm text-stellar-muted mb-1">
-              {t("onboarding.walletName")}
+            <label className="block text-sm text-stellar-muted mb-3">
+              {t("settings.network", "Network")}
             </label>
-            <p className="text-sm text-white">{active.name}</p>
+            <NetworkSwitcher />
           </div>
         )}
 

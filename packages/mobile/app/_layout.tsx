@@ -22,6 +22,7 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
         <Stack.Screen name="settings" options={{ presentation: "modal" }} />
         <Stack.Screen name="history" />
+        <Stack.Screen name="token-detail" />
       </Stack>
     </QueryClientProvider>
   );

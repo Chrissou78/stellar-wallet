@@ -2,10 +2,11 @@ import { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { useWalletStore } from "../src/store/wallet";
+import { useWalletStore } from "../src/shared/store/wallet";
 import LanguageSwitcher from "../src/components/LanguageSwitcher";
 import * as Clipboard from "expo-clipboard";
-import { Copy, Eye, EyeOff, Shield, LogOut, ChevronLeft, Network, User, Globe } from "lucide-react-native";
+import { Copy, Eye, EyeOff, Shield, LogOut, ChevronLeft, User, Globe, Check } from "lucide-react-native";
+import NetworkSwitcher from "../src/components/NetworkSwitcher";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -58,9 +59,13 @@ export default function SettingsPage() {
 
   const toggleNetwork = () => {
     const next = network === "testnet" ? "public" : "testnet";
+    const message = next === "public"
+      ? t("settings.mainnetWarning", "Switching to PUBLIC mainnet. Real XLM will be used. Make sure you understand the risks.")
+      : t("settings.testnetInfo", "Switching to testnet. Test XLM only, no real value.");
+    
     Alert.alert(
       t("settings.switchNetwork", "Switch Network"),
-      `${t("settings.switchTo", "Switch to")} ${next}?`,
+      message,
       [
         { text: t("common.cancel", "Cancel"), style: "cancel" },
         { text: t("common.confirm", "Confirm"), onPress: () => setNetwork(next) },
@@ -105,13 +110,8 @@ export default function SettingsPage() {
           </View>
 
           {/* Network */}
-          <TouchableOpacity onPress={toggleNetwork} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ color: "#6b7280", fontSize: 13 }}>{t("settings.network", "Network")}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: network === "testnet" ? "#f59e0b" : "#10b981" }} />
-              <Text style={{ color: "#fff", fontSize: 13, textTransform: "capitalize" }}>{network}</Text>
-            </View>
-          </TouchableOpacity>
+          <Text style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>{t("settings.network", "Network")}</Text>
+          <NetworkSwitcher />
 
           {/* Public Key */}
           <TouchableOpacity

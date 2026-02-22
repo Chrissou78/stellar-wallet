@@ -1,11 +1,13 @@
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { useWalletStore } from "../../src/store/wallet";
+import { useWalletStore } from "../../src/shared/store/wallet";
 import { useBalances } from "../../src/shared/hooks/useBalances";
 import AccountSwitcher from "../../src/components/AccountSwitcher";
-import { Settings, Clock, Copy } from "lucide-react-native";
+import TokenIcon from "../../src/components/TokenIcon";
+import { Settings, Clock, Copy, Check, ChevronRight } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
+import { useState } from "react";
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -13,11 +15,19 @@ export default function Dashboard() {
   const publicKey = useWalletStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.publicKey ?? ""
   );
-  const { data: balances, isLoading } = useBalances();
+  const network = useWalletStore((s) => s.network);
+  const { data: balances, isLoading, refetch, isRefetching } = useBalances();
+  const [copied, setCopied] = useState(false);
 
   const xlmBalance = balances?.find(
     (b) => b.assetCode === "XLM" && (b.assetType === "native" || !b.assetIssuer)
   );
+
+  const copyAddress = async () => {
+    await Clipboard.setStringAsync(publicKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0a0e1a" }}>
@@ -45,7 +55,29 @@ export default function Dashboard() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#3b82f6" />}
+      >
+        {/* Network Badge */}
+        <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: 12 }}>
+          <View style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            backgroundColor: "rgba(245,158,11,0.15)",
+            borderRadius: 20,
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+          }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: network === "testnet" ? "#f59e0b" : "#10b981" }} />
+            <Text style={{ color: network === "testnet" ? "#f59e0b" : "#10b981", fontSize: 11, fontWeight: "500", textTransform: "capitalize" }}>
+              {network}
+            </Text>
+          </View>
+        </View>
+
         {/* Balance Card */}
         <View
           style={{
@@ -55,14 +87,33 @@ export default function Dashboard() {
             borderRadius: 16,
             borderWidth: 1,
             borderColor: "#1f2937",
-            marginBottom: 20,
+            marginBottom: 12,
           }}
         >
-          <Text style={{ color: "#fff", fontSize: 36, fontWeight: "700" }}>
+          <TokenIcon code="XLM" size={48} />
+          <Text style={{ color: "#fff", fontSize: 36, fontWeight: "700", marginTop: 8 }}>
             {xlmBalance ? parseFloat(xlmBalance.balance).toFixed(2) : "0.00"}
           </Text>
-          <Text style={{ color: "#6b7280", fontSize: 14, marginTop: 4 }}>XLM</Text>
+          <Text style={{ color: "#6b7280", fontSize: 14, marginTop: 2 }}>XLM</Text>
         </View>
+
+        {/* Copy Address */}
+        <TouchableOpacity
+          onPress={copyAddress}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            marginBottom: 16,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ color: "#6b7280", fontSize: 11, fontFamily: "monospace" }}>
+            {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
+          </Text>
+          {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} color="#6b7280" />}
+        </TouchableOpacity>
 
         {/* Quick Actions */}
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
@@ -88,9 +139,14 @@ export default function Dashboard() {
         </View>
 
         {/* Assets */}
-        <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-          {t("dashboard.assets", "Assets")}
-        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>
+            {t("dashboard.assets", "Assets")}
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/tokens")}>
+            <Text style={{ color: "#3b82f6", fontSize: 12 }}>{t("dashboard.viewAll", "View All")}</Text>
+          </TouchableOpacity>
+        </View>
 
         {isLoading ? (
           <ActivityIndicator color="#3b82f6" style={{ marginTop: 32 }} />
@@ -102,10 +158,10 @@ export default function Dashboard() {
           balances.map((b) => {
             const code = b.assetCode || "XLM";
             const issuer = b.assetIssuer || "native";
-            const hasImage = b.token?.tomlImage;
             return (
-              <View
+              <TouchableOpacity
                 key={`${code}-${issuer}`}
+                onPress={() => router.push(`/token-detail?code=${code}&issuer=${issuer}`)}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -116,40 +172,23 @@ export default function Dashboard() {
                   borderWidth: 1,
                   borderColor: "#1f2937",
                   marginBottom: 8,
+                  gap: 12,
                 }}
               >
-                {hasImage ? (
-                  <Image
-                    source={{ uri: b.token!.tomlImage }}
-                    style={{ width: 36, height: 36, borderRadius: 18, marginRight: 12 }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
-                      backgroundColor: "#3b82f6",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: 12,
-                    }}
-                  >
-                    <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>
-                      {code.charAt(0)}
-                    </Text>
-                  </View>
-                )}
+                <TokenIcon code={code} image={b.token?.tomlImage} size={36} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>{code}</Text>
                   <Text style={{ color: "#6b7280", fontSize: 11 }}>
-                    {b.token?.tomlName || (issuer === "native" ? "Stellar Lumens" : issuer.slice(0, 8) + "…")}
+                    {b.token?.tomlName || (issuer === "native" ? "Stellar Lumens" : `${issuer.slice(0, 8)}…`)}
                   </Text>
                 </View>
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
-                  {parseFloat(b.balance).toFixed(parseFloat(b.balance) > 1000 ? 0 : 2)}
-                </Text>
-              </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
+                    {parseFloat(b.balance).toFixed(parseFloat(b.balance) > 1000 ? 0 : 2)}
+                  </Text>
+                </View>
+                <ChevronRight size={14} color="#6b7280" />
+              </TouchableOpacity>
             );
           })
         )}

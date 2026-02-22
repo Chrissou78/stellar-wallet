@@ -3,18 +3,11 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useWalletStore } from "../../shared/store/wallet";
 import LanguageSwitcher from "../../shared/components/LanguageSwitcher";
+import NetworkSwitcher from "../../shared/components/NetworkSwitcher";
 import PinModal from "../../shared/components/PinModal";
 import { toast } from "sonner";
 import {
-  Copy,
-  Check,
-  LogOut,
-  Eye,
-  EyeOff,
-  Shield,
-  Globe,
-  User,
-  Network,
+  Copy, Check, LogOut, Eye, EyeOff, Shield, Globe, User,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -22,7 +15,6 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const accounts = useWalletStore((s) => s.accounts);
   const activeAccountId = useWalletStore((s) => s.activeAccountId);
-  const network = useWalletStore((s) => s.network);
   const getSecretKey = useWalletStore((s) => s.getSecretKey);
   const unlock = useWalletStore((s) => s.unlock);
   const logout = useWalletStore((s) => s.logout);
@@ -74,12 +66,12 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-stellar-muted">{t("settings.network", "Network")}</span>
-          <div className="flex items-center gap-1">
-            <Network size={10} className="text-stellar-blue" />
-            <span className="text-xs text-white capitalize">{network}</span>
-          </div>
+        {/* Network Switcher */}
+        <div>
+          <label className="block text-[10px] text-stellar-muted mb-2">
+            {t("settings.network", "Network")}
+          </label>
+          <NetworkSwitcher />
         </div>
 
         {/* Public Key */}
@@ -103,7 +95,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Security — Secret Key */}
+      {/* Security */}
       <div className="bg-stellar-card border border-stellar-border rounded-xl p-3 space-y-2.5">
         <div className="flex items-center gap-2">
           <Shield size={14} className="text-stellar-muted" />
