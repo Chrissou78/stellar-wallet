@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useWalletStore } from "../shared/store/wallet";
 import AccountSwitcher from "../shared/components/AccountSwitcher";
+import AppLock from "../shared/components/AppLock";
 import clsx from "clsx";
 
 import Dashboard from "./pages/Dashboard";
@@ -94,35 +95,33 @@ function Header() {
 export default function App() {
   return (
     <div className="flex flex-col h-[600px] w-[380px] bg-stellar-bg">
-      <Routes>
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <Header />
-              <div className="flex-1 overflow-y-auto">
-                <Routes>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/tokens" element={<Tokens />} />
-                  <Route path="/send" element={<SendPage />} />
-                  <Route path="/receive" element={<ReceivePage />} />
-                  <Route path="/swap" element={<SwapPage />} />
-                  <Route path="/history" element={<HistoryPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/tokens/:code/:issuer" element={<TokenDetailPage />} />
-
-                  <Route
-                    path="*"
-                    element={<Navigate to="/dashboard" replace />}
-                  />
-                </Routes>
-              </div>
-              <BottomNav />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+      <AppLock>
+        <Routes>
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <Header />
+                <div className="flex-1 overflow-y-auto">
+                  <Routes>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/tokens" element={<Tokens />} />
+                    <Route path="/send" element={<SendPage />} />
+                    <Route path="/receive" element={<ReceivePage />} />
+                    <Route path="/swap" element={<SwapPage />} />
+                    <Route path="/history" element={<HistoryPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/tokens/:code/:issuer" element={<TokenDetailPage />} />
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </div>
+                <BottomNav />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AppLock>
     </div>
   );
 }

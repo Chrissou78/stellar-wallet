@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useWalletStore } from "./store/wallet";
 import Layout from "./components/Layout";
+import AppLock from "./components/AppLock";
 import OnboardingPage from "./pages/Onboarding";
 import DashboardPage from "./pages/Dashboard";
 import TokensPage from "./pages/Tokens";
@@ -24,32 +25,32 @@ export default function App() {
   const hasWallet = accounts.length > 0 && activeAccountId;
 
   return (
-    <Routes>
-      {/* Onboarding: show if no wallets, OR if user navigates here to add one */}
-      <Route
-        path="/"
-        element={hasWallet ? <Navigate to="/dashboard" replace /> : <OnboardingPage />}
-      />
-      {/* Allow adding wallets even when logged in (via ?action=create/import) */}
-      <Route path="/onboarding" element={<OnboardingPage />} />
+    <AppLock>
+      <Routes>
+        <Route
+          path="/"
+          element={hasWallet ? <Navigate to="/dashboard" replace /> : <OnboardingPage />}
+        />
+        <Route path="/onboarding" element={<OnboardingPage />} />
 
-      <Route
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/tokens" element={<TokensPage />} />
-        <Route path="/tokens/:code/:issuer" element={<TokenDetailPage />} />
-        <Route path="/send" element={<SendPage />} />
-        <Route path="/receive" element={<ReceivePage />} />
-        <Route path="/swap" element={<SwapPage />} />
-        <Route path="/history" element={<HistoryPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/tokens" element={<TokensPage />} />
+          <Route path="/tokens/:code/:issuer" element={<TokenDetailPage />} />
+          <Route path="/send" element={<SendPage />} />
+          <Route path="/receive" element={<ReceivePage />} />
+          <Route path="/swap" element={<SwapPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppLock>
   );
 }

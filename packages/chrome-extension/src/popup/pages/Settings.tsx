@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useWalletStore } from "../../shared/store/wallet";
+import { useAuthStore } from "../../shared/store/auth";
 import LanguageSwitcher from "../../shared/components/LanguageSwitcher";
 import NetworkSwitcher from "../../shared/components/NetworkSwitcher";
 import PinModal from "../../shared/components/PinModal";
 import { toast } from "sonner";
 import {
-  Copy, Check, LogOut, Eye, EyeOff, Shield, Globe, User,
+  Copy, Check, LogOut, Eye, EyeOff, Shield, Globe, User, Lock,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -17,7 +18,9 @@ export default function SettingsPage() {
   const activeAccountId = useWalletStore((s) => s.activeAccountId);
   const getSecretKey = useWalletStore((s) => s.getSecretKey);
   const unlock = useWalletStore((s) => s.unlock);
-  const logout = useWalletStore((s) => s.logout);
+  const walletLogout = useWalletStore((s) => s.logout);
+
+  const { lock: lockApp, logout: authLogout } = useAuthStore();
 
   const active = accounts.find((a) => a.id === activeAccountId);
   const publicKey = active?.publicKey || "";
@@ -27,6 +30,7 @@ export default function SettingsPage() {
   const [showPin, setShowPin] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [showLang, setShowLang] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const copyPublicKey = () => {
     navigator.clipboard.writeText(publicKey);
@@ -43,8 +47,10 @@ export default function SettingsPage() {
     setTimeout(() => setCopiedSk(false), 2000);
   };
 
-  const handleLogout = () => {
-    logout();
+  const confirmLogout = () => {
+    walletLogout();
+    authLogout();
+    setShowLogoutConfirm(false);
     navigate("/onboarding");
   };
 
@@ -144,6 +150,15 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
+
+        {/* Lock App */}
+        <button
+          onClick={lockApp}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-xs"
+        >
+          <Lock size={14} />
+          {t("settings.lockNow", "Lock App Now")}
+        </button>
       </div>
 
       {/* Language */}
@@ -167,7 +182,7 @@ export default function SettingsPage() {
 
       {/* Logout */}
       <button
-        onClick={handleLogout}
+        onClick={() => setShowLogoutConfirm(true)}
         className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs font-medium"
       >
         <LogOut size={14} />
@@ -186,6 +201,39 @@ export default function SettingsPage() {
           }}
           onCancel={() => setShowPin(false)}
         />
+      )}
+
+      {/* Logout Confirmation */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-stellar-card border border-stellar-border rounded-2xl p-5 max-w-[340px] w-full space-y-4">
+            <div className="flex justify-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+                <LogOut size={24} className="text-red-400" />
+              </div>
+            </div>
+            <h3 className="text-white text-base font-bold text-center">
+              {t("settings.logout", "Logout")}
+            </h3>
+            <p className="text-stellar-muted text-xs text-center leading-relaxed">
+              {t("settings.logoutConfirm", "This will delete all wallets from this device. Make sure you have backed up your secret keys.")}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-stellar-border text-stellar-muted text-xs font-medium hover:text-white transition-colors"
+              >
+                {t("common.cancel", "Cancel")}
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
+              >
+                {t("settings.logout", "Logout")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -2,21 +2,23 @@ import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWalletStore } from "../store/wallet";
+import { useAuthStore } from "../store/auth";
 import { useNavigate } from "react-router-dom";
 import PinModal from "../components/PinModal";
 import { toast } from "sonner";
-import { Copy, Check, LogOut, Eye, EyeOff, Shield } from "lucide-react";
+import { Copy, Check, LogOut, Eye, EyeOff, Shield, Lock } from "lucide-react";
 import NetworkSwitcher from "../components/NetworkSwitcher";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
   const accounts = useWalletStore((s) => s.accounts);
   const activeAccountId = useWalletStore((s) => s.activeAccountId);
-  const network = useWalletStore((s) => s.network);
   const getSecretKey = useWalletStore((s) => s.getSecretKey);
   const unlock = useWalletStore((s) => s.unlock);
-  const logout = useWalletStore((s) => s.logout);
+  const walletLogout = useWalletStore((s) => s.logout);
   const navigate = useNavigate();
+
+  const { lock: lockApp, logout: authLogout } = useAuthStore();
 
   const active = accounts.find((a) => a.id === activeAccountId);
   const publicKey = active?.publicKey || "";
@@ -25,10 +27,12 @@ export default function SettingsPage() {
   const [copiedSk, setCopiedSk] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleCopyPublicKey = () => {
     navigator.clipboard.writeText(publicKey);
     setCopiedPk(true);
+    toast.success(t("common.copied", "Copied!"));
     setTimeout(() => setCopiedPk(false), 2000);
   };
 
@@ -36,7 +40,7 @@ export default function SettingsPage() {
     if (!revealedKey) return;
     navigator.clipboard.writeText(revealedKey);
     setCopiedSk(true);
-    toast.success(t("common.copied"));
+    toast.success(t("common.copied", "Copied!"));
     setTimeout(() => setCopiedSk(false), 2000);
   };
 
@@ -49,16 +53,16 @@ export default function SettingsPage() {
     setCopiedSk(false);
   };
 
-  const handleLogout = () => {
-    if (confirm(t("settings.logoutConfirm"))) {
-      logout();
-      navigate("/");
-    }
+  const confirmLogout = () => {
+    walletLogout();
+    authLogout();
+    setShowLogoutConfirm(false);
+    navigate("/");
   };
 
   return (
     <div className="space-y-6 max-w-lg">
-      <h1 className="text-2xl font-bold text-white">{t("settings.title")}</h1>
+      <h1 className="text-2xl font-bold text-white">{t("settings.title", "Settings")}</h1>
 
       {/* Account Info */}
       <div className="bg-stellar-card border border-stellar-border rounded-2xl p-6 space-y-4">
@@ -67,13 +71,18 @@ export default function SettingsPage() {
         </h2>
 
         {active && (
-          <div>
-            <label className="block text-sm text-stellar-muted mb-3">
-              {t("settings.network", "Network")}
-            </label>
-            <NetworkSwitcher />
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-stellar-muted">{t("onboarding.walletName", "Name")}</span>
+            <span className="text-sm text-white font-medium">{active.name}</span>
           </div>
         )}
+
+        <div>
+          <label className="block text-sm text-stellar-muted mb-3">
+            {t("settings.network", "Network")}
+          </label>
+          <NetworkSwitcher />
+        </div>
 
         <div>
           <label className="block text-sm text-stellar-muted mb-1">
@@ -86,7 +95,7 @@ export default function SettingsPage() {
             <button
               onClick={handleCopyPublicKey}
               className="p-2 rounded-lg border border-stellar-border hover:bg-white/5 shrink-0"
-              title={t("common.copy")}
+              title={t("common.copy", "Copy")}
             >
               {copiedPk ? (
                 <Check size={16} className="text-stellar-success" />
@@ -95,13 +104,6 @@ export default function SettingsPage() {
               )}
             </button>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm text-stellar-muted mb-1">
-            {t("settings.network")}
-          </label>
-          <p className="text-sm text-white capitalize">{t(`settings.${network}`)}</p>
         </div>
       </div>
 
@@ -116,13 +118,14 @@ export default function SettingsPage() {
           {t("settings.security", "Security")}
         </h2>
 
+        {/* Reveal Secret Key */}
         {!revealedKey ? (
           <button
             onClick={handleReveal}
             className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
           >
             <Eye size={16} />
-            {t("settings.revealSecret")}
+            {t("settings.revealSecret", "Reveal Secret Key")}
           </button>
         ) : (
           <div className="space-y-3">
@@ -130,7 +133,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2">
                 <Shield size={14} className="text-stellar-danger" />
                 <p className="text-xs text-stellar-danger font-semibold">
-                  {t("settings.secretWarning")}
+                  {t("settings.secretWarning", "Never share your secret key!")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -140,7 +143,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleCopySecretKey}
                   className="p-2 rounded-lg border border-stellar-danger/30 hover:bg-stellar-danger/20 transition-colors shrink-0"
-                  title={t("common.copy")}
+                  title={t("common.copy", "Copy")}
                 >
                   {copiedSk ? (
                     <Check size={14} className="text-stellar-success" />
@@ -160,19 +163,29 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Lock App */}
         <button
-          onClick={handleLogout}
+          onClick={lockApp}
+          className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
+        >
+          <Lock size={16} />
+          {t("settings.lockNow", "Lock App Now")}
+        </button>
+
+        {/* Logout */}
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
           className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-danger/30 text-stellar-danger hover:bg-stellar-danger/10 transition-colors text-sm"
         >
           <LogOut size={16} />
-          {t("settings.logout")}
+          {t("settings.logout", "Logout")}
         </button>
       </div>
 
       {/* PIN Modal */}
       {showPin && (
         <PinModal
-          title={t("settings.enterPinToReveal")}
+          title={t("settings.enterPinToReveal", "Enter PIN to reveal secret key")}
           onSubmit={async (pin) => {
             await unlock(pin);
             const sk = getSecretKey();
@@ -181,6 +194,39 @@ export default function SettingsPage() {
           }}
           onCancel={() => setShowPin(false)}
         />
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-stellar-card border border-stellar-border rounded-2xl p-6 max-w-sm w-full space-y-4">
+            <div className="flex justify-center">
+              <div className="w-14 h-14 rounded-full bg-stellar-danger/15 flex items-center justify-center">
+                <LogOut size={28} className="text-stellar-danger" />
+              </div>
+            </div>
+            <h3 className="text-white text-lg font-bold text-center">
+              {t("settings.logout", "Logout")}
+            </h3>
+            <p className="text-stellar-muted text-sm text-center">
+              {t("settings.logoutConfirm", "This will delete all wallets from this device. Make sure you have backed up your secret keys.")}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-3 rounded-xl border border-stellar-border text-stellar-muted text-sm font-medium hover:text-white transition-colors"
+              >
+                {t("common.cancel", "Cancel")}
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="flex-1 py-3 rounded-xl bg-stellar-danger hover:bg-red-600 text-white text-sm font-medium transition-colors"
+              >
+                {t("settings.logout", "Logout")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
