@@ -10,13 +10,13 @@ import {
   History as HistoryIcon,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { useWalletStore } from "../store/wallet";
 import AccountSwitcher from "./AccountSwitcher";
+import { useAuthStore } from "../store/auth";
 import clsx from "clsx";
 
 export default function Layout() {
   const { t } = useTranslation();
-  const lock = useWalletStore((s) => s.lock);
+  const lockApp = useAuthStore((s) => s.lock);
 
   const NAV = [
     { to: "/dashboard", label: t("nav.dashboard"), icon: Home },
@@ -57,7 +57,7 @@ export default function Layout() {
 
         <div className="p-3 border-t border-stellar-border">
           <button
-            onClick={lock}
+            onClick={lockApp}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-stellar-muted hover:text-white rounded-lg hover:bg-white/5 transition-colors"
           >
             <Lock size={16} />
