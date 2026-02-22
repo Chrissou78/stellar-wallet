@@ -164,10 +164,15 @@ export class TokenService {
   }
 
   // ─── Get single token with full detail ───
-  async getDetail(code: string, issuer: string) {
-    const cacheKey = `token:${code}:${issuer}`;
+  async getDetail(code: string, issuer: string | null) {
+    const cacheKey = `token:${code}:${issuer || "native"}`;
     const cached = await cache.get(cacheKey);
     if (cached) return cached;
+
+    // Build the where clause depending on native vs issued
+    const whereClause = issuer
+      ? and(eq(tokens.assetCode, code), eq(tokens.assetIssuer, issuer))
+      : and(eq(tokens.assetCode, code), eq(tokens.assetType, "native"));
 
     const [token] = await db
       .select()
@@ -179,15 +184,20 @@ export class TokenService {
           eq(contractTokens.assetIssuer, tokens.assetIssuer)
         )
       )
-      .where(and(eq(tokens.assetCode, code), eq(tokens.assetIssuer, issuer)))
+      .where(whereClause)
       .limit(1);
 
     if (!token) return null;
 
-    const [orderbook, pools] = await Promise.all([
-      this.getOrderbook(code, issuer),
-      this.getRelatedPools(code, issuer),
-    ]);
+    // Skip orderbook/pools for native XLM
+    let orderbook = null;
+    let pools: any[] = [];
+    if (issuer) {
+      [orderbook, pools] = await Promise.all([
+        this.getOrderbook(code, issuer),
+        this.getRelatedPools(code, issuer),
+      ]);
+    }
 
     const result = {
       ...token.tokens,
@@ -196,7 +206,7 @@ export class TokenService {
       liquidityPools: pools,
     };
 
-    await cache.set(cacheKey, result, 300); // 5 min in-memory
+    await cache.set(cacheKey, result, 300);
     return result;
   }
 

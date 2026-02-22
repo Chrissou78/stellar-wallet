@@ -57,7 +57,7 @@ async function bootstrap() {
   // Single token detail
   app.get("/api/v1/tokens/:code/:issuer", async (request) => {
     const { code, issuer } = request.params as any;
-    const token = await tokenService.getDetail(code, issuer);
+    const token = await tokenService.getDetail(code, issuer === "native" ? null : issuer);
     if (!token) {
       return { error: "Token not found" };
     }
