@@ -232,18 +232,19 @@ async function bootstrap() {
   });
 
   // Keypair generation for mobile (no stellar-base in RN)
-  app.get("/api/v1/keypair/generate", (_req, res) => {
+   app.get("/api/v1/keypair/generate", async () => {
     const pair = StellarSdk.Keypair.random();
-    res.json({ publicKey: pair.publicKey(), secretKey: pair.secret() });
+    return { publicKey: pair.publicKey(), secretKey: pair.secret() };
   });
 
-  app.post("/api/v1/keypair/from-secret", (req, res) => {
+  app.post("/api/v1/keypair/from-secret", async (request, reply) => {
     try {
-      const { secret } = req.body;
+      const { secret } = request.body as any;
       const pair = StellarSdk.Keypair.fromSecret(secret);
-      res.json({ publicKey: pair.publicKey() });
+      return { publicKey: pair.publicKey() };
     } catch {
-      res.status(400).json({ error: "Invalid secret key" });
+      reply.status(400);
+      return { error: "Invalid secret key" };
     }
   });
 
