@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Stellar Wallet",
+  "description": "A secure Stellar wallet for sending, receiving, and swapping XLM and Stellar tokens",
+  "version": "1.0.0",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
+    "default_title": "Stellar Wallet"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://horizon.stellar.org/*",
+    "https://horizon-testnet.stellar.org/*",
+    "https://soroban-testnet.stellar.org/*",
+    "https://soroban.stellar.org/*",
+    "https://api.stellar.expert/*",
+    "https://stellar-wallet.onrender.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
+}
