@@ -1,22 +1,29 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, TextInput } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useWalletStore } from "../src/shared/store/wallet";
+import { useAuthStore } from "../src/shared/store/auth";
 import LanguageSwitcher from "../src/components/LanguageSwitcher";
-import * as Clipboard from "expo-clipboard";
-import { Copy, Eye, EyeOff, Shield, LogOut, ChevronLeft, User, Globe, Check } from "lucide-react-native";
 import NetworkSwitcher from "../src/components/NetworkSwitcher";
+import * as Clipboard from "expo-clipboard";
+import {
+  Copy, Eye, EyeOff, Shield, LogOut, ChevronLeft, User, Globe,
+  Check, Lock, Fingerprint,
+} from "lucide-react-native";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const active = useWalletStore((s) => s.accounts.find((a) => a.id === s.activeAccountId));
-  const network = useWalletStore((s) => s.network);
-  const setNetwork = useWalletStore((s) => s.setNetwork);
   const unlock = useWalletStore((s) => s.unlock);
   const getSecretKey = useWalletStore((s) => s.getSecretKey);
-  const logout = useWalletStore((s) => s.logout);
+  const walletLogout = useWalletStore((s) => s.logout);
+
+  const {
+    biometricsEnabled, biometricsAvailable, enableBiometrics,
+    lock: lockApp, hasPin,
+  } = useAuthStore();
 
   const publicKey = active?.publicKey || "";
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
@@ -28,12 +35,20 @@ export default function SettingsPage() {
 
   const copyKey = async (key: string, type: "pk" | "sk") => {
     await Clipboard.setStringAsync(key);
-    if (type === "pk") { setCopiedPk(true); setTimeout(() => setCopiedPk(false), 2000); }
-    else { setCopiedSk(true); setTimeout(() => setCopiedSk(false), 2000); }
+    if (type === "pk") {
+      setCopiedPk(true);
+      setTimeout(() => setCopiedPk(false), 2000);
+    } else {
+      setCopiedSk(true);
+      setTimeout(() => setCopiedSk(false), 2000);
+    }
   };
 
   const handleReveal = async () => {
-    if (pin.length < 6) { setPinError(t("onboarding.pinMin", "PIN must be at least 6 characters")); return; }
+    if (pin.length < 6) {
+      setPinError(t("onboarding.pinMin", "PIN must be at least 6 characters"));
+      return;
+    }
     try {
       await unlock(pin);
       const sk = getSecretKey();
@@ -46,35 +61,27 @@ export default function SettingsPage() {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      t("settings.logout", "Logout"),
-      t("settings.logoutConfirm", "This will delete all wallets from this device."),
-      [
-        { text: t("common.cancel", "Cancel"), style: "cancel" },
-        { text: t("settings.logout", "Logout"), style: "destructive", onPress: () => { logout(); router.replace("/onboarding"); } },
-      ]
-    );
+  const handleLockApp = () => {
+    lockApp();
+    router.replace("/lock-screen");
   };
 
-  const toggleNetwork = () => {
-    const next = network === "testnet" ? "public" : "testnet";
-    const message = next === "public"
-      ? t("settings.mainnetWarning", "Switching to PUBLIC mainnet. Real XLM will be used. Make sure you understand the risks.")
-      : t("settings.testnetInfo", "Switching to testnet. Test XLM only, no real value.");
-    
-    Alert.alert(
-      t("settings.switchNetwork", "Switch Network"),
-      message,
-      [
-        { text: t("common.cancel", "Cancel"), style: "cancel" },
-        { text: t("common.confirm", "Confirm"), onPress: () => setNetwork(next) },
-      ]
-    );
+  const handleLogout = () => {
+    // Custom modal instead of Alert.alert to match look & feel
+    setShowLogoutConfirm(true);
+  };
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const confirmLogout = () => {
+    walletLogout();
+    setShowLogoutConfirm(false);
+    router.replace("/onboarding");
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0a0e1a" }}>
+      {/* Header */}
       <View
         style={{
           flexDirection: "row",
@@ -110,7 +117,9 @@ export default function SettingsPage() {
           </View>
 
           {/* Network */}
-          <Text style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>{t("settings.network", "Network")}</Text>
+          <Text style={{ color: "#6b7280", fontSize: 12, marginTop: 2 }}>
+            {t("settings.network", "Network")}
+          </Text>
           <NetworkSwitcher />
 
           {/* Public Key */}
@@ -143,6 +152,7 @@ export default function SettingsPage() {
             </Text>
           </View>
 
+          {/* Reveal Secret Key */}
           {!revealedKey && !showPinInput && (
             <TouchableOpacity
               onPress={() => setShowPinInput(true)}
@@ -157,7 +167,9 @@ export default function SettingsPage() {
               }}
             >
               <Eye size={16} color="#6b7280" />
-              <Text style={{ color: "#6b7280", fontSize: 13 }}>{t("settings.revealSecret", "Reveal Secret Key")}</Text>
+              <Text style={{ color: "#6b7280", fontSize: 13 }}>
+                {t("settings.revealSecret", "Reveal Secret Key")}
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -230,6 +242,70 @@ export default function SettingsPage() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Biometrics Toggle */}
+          {biometricsAvailable && (
+            <TouchableOpacity
+              onPress={() => enableBiometrics(!biometricsEnabled)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderWidth: 1,
+                borderColor: "#1f2937",
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Fingerprint size={16} color={biometricsEnabled ? "#8b5cf6" : "#6b7280"} />
+                <Text style={{ color: biometricsEnabled ? "#8b5cf6" : "#6b7280", fontSize: 13 }}>
+                  {t("settings.biometrics", "Biometric Unlock")}
+                </Text>
+              </View>
+              <View
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: biometricsEnabled ? "#8b5cf6" : "#1f2937",
+                  justifyContent: "center",
+                  paddingHorizontal: 2,
+                }}
+              >
+                <View
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    backgroundColor: "#fff",
+                    alignSelf: biometricsEnabled ? "flex-end" : "flex-start",
+                  }}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Lock App Now */}
+          {hasPin && (
+            <TouchableOpacity
+              onPress={handleLockApp}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                borderWidth: 1,
+                borderColor: "#1f2937",
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <Lock size={16} color="#6b7280" />
+              <Text style={{ color: "#6b7280", fontSize: 13 }}>
+                {t("settings.lockNow", "Lock App Now")}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Language */}
@@ -258,9 +334,91 @@ export default function SettingsPage() {
           }}
         >
           <LogOut size={16} color="#ef4444" />
-          <Text style={{ color: "#ef4444", fontSize: 14, fontWeight: "500" }}>{t("settings.logout", "Logout")}</Text>
+          <Text style={{ color: "#ef4444", fontSize: 14, fontWeight: "500" }}>
+            {t("settings.logout", "Logout")}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#111827",
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "#1f2937",
+              padding: 24,
+              width: "100%",
+              maxWidth: 340,
+              gap: 16,
+            }}
+          >
+            <View style={{ alignItems: "center" }}>
+              <View
+                style={{
+                  width: 56, height: 56, borderRadius: 28,
+                  backgroundColor: "rgba(239,68,68,0.15)",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <LogOut size={28} color="#ef4444" />
+              </View>
+            </View>
+
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", textAlign: "center" }}>
+              {t("settings.logout", "Logout")}
+            </Text>
+
+            <Text style={{ color: "#6b7280", fontSize: 13, textAlign: "center", lineHeight: 20 }}>
+              {t("settings.logoutConfirm", "This will delete all wallets from this device. Make sure you have backed up your secret keys.")}
+            </Text>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+              <TouchableOpacity
+                onPress={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#1f2937",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#6b7280", fontSize: 14, fontWeight: "500" }}>
+                  {t("common.cancel", "Cancel")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={confirmLogout}
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  backgroundColor: "#ef4444",
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
+                  {t("settings.logout", "Logout")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

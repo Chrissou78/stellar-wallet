@@ -18,8 +18,11 @@ export default function RootLayout() {
           animation: "slide_from_right",
         }}
       >
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
+        <Stack.Screen name="setup-pin" options={{ animation: "fade", gestureEnabled: false }} />
+        <Stack.Screen name="lock-screen" options={{ animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="settings" options={{ presentation: "modal" }} />
         <Stack.Screen name="history" />
         <Stack.Screen name="token-detail" />
