@@ -28,6 +28,12 @@
       "expo-router",
       "expo-secure-store",
       "expo-localization"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "89ad7ee8-3012-4a8a-89bf-00538c7c55df"
+      }
+    }
   }
 }

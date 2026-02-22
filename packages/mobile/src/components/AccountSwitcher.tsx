@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { useWalletStore } from "../store/wallet";
+import { useWalletStore } from "../shared/store/wallet";
 import { ChevronDown, Plus, Download, Trash2, Pencil, Check, X, User } from "lucide-react-native";
 
 export default function AccountSwitcher() {
