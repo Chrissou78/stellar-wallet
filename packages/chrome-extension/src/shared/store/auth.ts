@@ -1,62 +1,96 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { authApi, setTokens, clearTokens, getAccessToken } from "../lib/api";
 
-interface AuthState {
-  isLocked: boolean;
-  hasPassword: boolean;
-  _passwordHash: string | null;
-
-  setPassword: (password: string) => void;
-  verifyPassword: (password: string) => boolean;
-  lock: () => void;
-  unlock: () => void;
-  logout: () => void;
+interface User {
+  id: number;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  avatar: string | null;
+  preferredLanguage: string;
+  preferredNetwork: string;
 }
 
-// Simple hash for client-side password verification
-function hashPassword(password: string): string {
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  // Add salt-like suffix with length
-  return `${hash.toString(36)}_${password.length}_${password.charCodeAt(0).toString(36)}`;
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+
+  register: (data: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+  }) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  loadProfile: () => Promise<void>;
+  updateProfile: (data: {
+    firstName?: string;
+    lastName?: string;
+    preferredLanguage?: string;
+    preferredNetwork?: string;
+  }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
-      isLocked: true,
-      hasPassword: false,
-      _passwordHash: null,
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
 
-      setPassword: (password: string) => {
-        const hashed = hashPassword(password);
-        set({ _passwordHash: hashed, hasPassword: true, isLocked: false });
+      register: async (data) => {
+        const res = await authApi.register(data);
+        setTokens(res.accessToken, res.refreshToken);
+        set({ user: res.user, isAuthenticated: true });
       },
 
-      verifyPassword: (password: string) => {
-        const hashed = hashPassword(password);
-        return hashed === get()._passwordHash;
+      login: async (email, password) => {
+        const res = await authApi.login(email, password);
+        setTokens(res.accessToken, res.refreshToken);
+        set({ user: res.user, isAuthenticated: true });
       },
 
-      lock: () => set({ isLocked: true }),
-      unlock: () => set({ isLocked: false }),
+      logout: async () => {
+        try {
+          await authApi.logout();
+        } catch {
+          // ignore
+        }
+        clearTokens();
+        set({ user: null, isAuthenticated: false });
+      },
 
-      logout: () => set({
-        isLocked: true,
-        hasPassword: false,
-        _passwordHash: null,
-      }),
+      loadProfile: async () => {
+        const token = getAccessToken();
+        if (!token) {
+          set({ user: null, isAuthenticated: false });
+          return;
+        }
+        try {
+          const res = await authApi.me();
+          set({ user: res.user, isAuthenticated: true });
+        } catch {
+          clearTokens();
+          set({ user: null, isAuthenticated: false });
+        }
+      },
+
+      updateProfile: async (data) => {
+        const res = await authApi.updateProfile(data);
+        set({ user: res.user });
+      },
+
+      changePassword: async (currentPassword, newPassword) => {
+        await authApi.changePassword(currentPassword, newPassword);
+      },
     }),
     {
-      name: "stellar-wallet-auth",
+      name: "stellar-ext-auth",
       partialize: (state) => ({
-        hasPassword: state.hasPassword,
-        _passwordHash: state._passwordHash,
-        isLocked: true, // always locked on reload
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
       }),
     }
   )

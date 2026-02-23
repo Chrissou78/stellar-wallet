@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, Check, Download, ChevronDown, Search, X } from "lucide-react";
+import { Copy, Check, ChevronDown, Search, X } from "lucide-react";
 import { useWalletStore } from "../../shared/store/wallet";
 import { useBalances } from "../../shared/hooks/useBalances";
 import { useQuery } from "@tanstack/react-query";
@@ -48,7 +48,9 @@ export default function ReceivePage() {
         options.push({
           code: b.assetCode,
           issuer: b.assetIssuer || null,
-          name: b.token?.tomlName || (b.assetType === "native" ? "Stellar Lumens" : b.assetCode),
+          name:
+            b.token?.tomlName ||
+            (b.assetType === "native" ? t("dashboard.stellarLumens") : b.assetCode),
           image: b.token?.tomlImage || null,
           isNative: b.assetType === "native",
           balance: b.balance,
@@ -78,7 +80,7 @@ export default function ReceivePage() {
     }
 
     return options;
-  }, [balances, featuredRaw]);
+  }, [balances, featuredRaw, t]);
 
   const sep7Uri = useMemo(() => {
     if (!publicKey) return "";
@@ -113,7 +115,7 @@ export default function ReceivePage() {
       {/* Token Picker */}
       <div className="relative">
         <label className="block text-xs text-stellar-muted mb-1">
-          {t("receive.token", "Token")}
+          {t("receive.selectToken")}
         </label>
         <button
           onClick={() => setShowPicker(!showPicker)}
@@ -126,7 +128,7 @@ export default function ReceivePage() {
               size={24}
             />
             <span className="text-sm text-white font-medium">
-              {selectedToken?.code || "Any token"}
+              {selectedToken?.code || t("receive.anyToken")}
             </span>
           </div>
           <ChevronDown
@@ -139,10 +141,13 @@ export default function ReceivePage() {
           <div className="absolute z-50 mt-1 w-full bg-stellar-card border border-stellar-border rounded-lg shadow-2xl overflow-hidden">
             <div className="p-2 border-b border-stellar-border">
               <div className="relative">
-                <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-stellar-muted" />
+                <Search
+                  size={14}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-stellar-muted"
+                />
                 <input
                   type="text"
-                  placeholder={t("tokens.search", "Search…")}
+                  placeholder={t("receive.searchTokens")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full bg-stellar-bg border border-stellar-border rounded pl-7 pr-7 py-1.5 text-xs text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50"
@@ -160,18 +165,31 @@ export default function ReceivePage() {
             </div>
             <div className="max-h-40 overflow-y-auto">
               <button
-                onClick={() => { setSelectedToken(null); setShowPicker(false); setSearch(""); }}
+                onClick={() => {
+                  setSelectedToken(null);
+                  setShowPicker(false);
+                  setSearch("");
+                }}
                 className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-xs ${!selectedToken ? "bg-stellar-blue/10" : ""}`}
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-stellar-blue to-stellar-purple flex items-center justify-center text-white text-[9px] font-bold">*</div>
-                <span className="text-white">{t("receive.anyToken", "Any token")}</span>
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-stellar-blue to-stellar-purple flex items-center justify-center text-white text-[9px] font-bold">
+                  *
+                </div>
+                <span className="text-white">{t("receive.anyToken")}</span>
               </button>
               {filteredTokens.map((tk) => (
                 <button
                   key={`${tk.code}-${tk.issuer || "native"}`}
-                  onClick={() => { setSelectedToken(tk); setShowPicker(false); setSearch(""); }}
+                  onClick={() => {
+                    setSelectedToken(tk);
+                    setShowPicker(false);
+                    setSearch("");
+                  }}
                   className={`w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 ${
-                    selectedToken?.code === tk.code && selectedToken?.issuer === tk.issuer ? "bg-stellar-blue/10" : ""
+                    selectedToken?.code === tk.code &&
+                    selectedToken?.issuer === tk.issuer
+                      ? "bg-stellar-blue/10"
+                      : ""
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -194,13 +212,13 @@ export default function ReceivePage() {
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-stellar-muted mb-1">
-            {t("receive.amount", "Amount")}
+            {t("receive.amount")}
           </label>
           <input
             type="number"
             min="0"
             step="any"
-            placeholder="0.00"
+            placeholder={t("receive.amountPlaceholder")}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-full bg-stellar-card border border-stellar-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50"
@@ -208,12 +226,12 @@ export default function ReceivePage() {
         </div>
         <div>
           <label className="block text-xs text-stellar-muted mb-1">
-            {t("receive.memo", "Memo")}
+            {t("receive.memo")}
           </label>
           <input
             type="text"
             maxLength={28}
-            placeholder="Optional"
+            placeholder={t("receive.memoPlaceholder")}
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             className="w-full bg-stellar-card border border-stellar-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50"
@@ -231,16 +249,26 @@ export default function ReceivePage() {
             level="M"
             imageSettings={
               selectedToken?.image
-                ? { src: selectedToken.image, width: 28, height: 28, excavate: true }
+                ? {
+                    src: selectedToken.image,
+                    width: 28,
+                    height: 28,
+                    excavate: true,
+                  }
                 : undefined
             }
           />
         </div>
         {selectedToken && (
           <div className="mt-2 flex items-center gap-1.5">
-            <TokenIcon code={selectedToken.code} image={selectedToken.image} size={16} />
+            <TokenIcon
+              code={selectedToken.code}
+              image={selectedToken.image}
+              size={16}
+            />
             <span className="text-xs text-white font-medium">
-              {selectedToken.code}{amount && ` — ${amount}`}
+              {selectedToken.code}
+              {amount && ` — ${amount}`}
             </span>
           </div>
         )}

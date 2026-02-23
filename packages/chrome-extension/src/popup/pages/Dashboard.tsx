@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   const copyAddress = () => {
     navigator.clipboard.writeText(publicKey);
-    toast.success(t("common.copied", "Copied!"));
+    toast.success(t("common.copied"));
   };
 
   return (
@@ -46,7 +46,7 @@ export default function Dashboard() {
       {/* Assets */}
       <div>
         <h3 className="text-sm font-semibold text-white mb-2">
-          {t("dashboard.assets", "Assets")}
+          {t("dashboard.yourAssets")}
         </h3>
 
         {isLoading ? (
@@ -55,7 +55,7 @@ export default function Dashboard() {
           </div>
         ) : !balances?.length ? (
           <p className="text-sm text-stellar-muted text-center py-8">
-            {t("dashboard.noAssets", "No assets yet")}
+            {t("dashboard.noAssets")}
           </p>
         ) : (
           <div className="space-y-1">
@@ -65,7 +65,7 @@ export default function Dashboard() {
               return (
                 <Link
                   key={`${code}-${issuer}`}
-                  to={`/tokens/${code}-${issuer}`}
+                  to={`/tokens/${encodeURIComponent(code)}/${encodeURIComponent(issuer)}`}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
                 >
                   <TokenIcon
@@ -76,7 +76,11 @@ export default function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white">{code}</p>
                     <p className="text-xs text-stellar-muted truncate">
-                      {b.token?.tomlName || b.token?.domain || (issuer === "native" ? "Stellar Lumens" : issuer.slice(0, 8) + "…")}
+                      {b.token?.tomlName ||
+                        b.token?.domain ||
+                        (issuer === "native"
+                          ? t("dashboard.stellarLumens")
+                          : issuer.slice(0, 8) + "…")}
                     </p>
                   </div>
                   <p className="text-sm text-white font-medium">

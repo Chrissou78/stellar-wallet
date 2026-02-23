@@ -1,5 +1,12 @@
 import { useState, useMemo } from "react";
-import { ArrowDownUp, Loader2, Search, X, ChevronDown, AlertCircle } from "lucide-react";
+import {
+  ArrowDownUp,
+  Loader2,
+  Search,
+  X,
+  ChevronDown,
+  AlertCircle,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWalletStore } from "../../shared/store/wallet";
 import { useBalances } from "../../shared/hooks/useBalances";
@@ -60,7 +67,9 @@ export default function SwapPage() {
         options.push({
           code: b.assetCode,
           issuer: b.assetIssuer || null,
-          name: b.token?.tomlName || (b.assetType === "native" ? "Stellar Lumens" : b.assetCode),
+          name:
+            b.token?.tomlName ||
+            (b.assetType === "native" ? t("dashboard.stellarLumens") : b.assetCode),
           image: b.token?.tomlImage || null,
           isNative: b.assetType === "native",
           balance: b.balance,
@@ -90,19 +99,27 @@ export default function SwapPage() {
     }
 
     return options;
-  }, [balances, featuredRaw]);
+  }, [balances, featuredRaw, t]);
 
   const fromOptions = useMemo(
-    () => tokenOptions.filter((tk) => tk.balance != null && parseFloat(tk.balance) > 0),
+    () =>
+      tokenOptions.filter(
+        (tk) => tk.balance != null && parseFloat(tk.balance) > 0
+      ),
     [tokenOptions]
   );
 
   const toOptions = useMemo(
-    () => tokenOptions.filter((tk) => !(tk.code === fromToken?.code && tk.issuer === fromToken?.issuer)),
+    () =>
+      tokenOptions.filter(
+        (tk) =>
+          !(
+            tk.code === fromToken?.code && tk.issuer === fromToken?.issuer
+          )
+      ),
     [tokenOptions, fromToken]
   );
 
-  // Default from = XLM
   useMemo(() => {
     if (!fromToken && fromOptions.length > 0) {
       const xlm = fromOptions.find((tk) => tk.isNative);
@@ -115,7 +132,14 @@ export default function SwapPage() {
     isLoading: quoteLoading,
     error: quoteError,
   } = useQuery<SwapQuote>({
-    queryKey: ["swap-quote", fromToken?.code, fromToken?.issuer, toToken?.code, toToken?.issuer, amount],
+    queryKey: [
+      "swap-quote",
+      fromToken?.code,
+      fromToken?.issuer,
+      toToken?.code,
+      toToken?.issuer,
+      amount,
+    ],
     queryFn: async () => {
       const result = await swapApi.quote({
         fromCode: fromToken!.code,
@@ -126,7 +150,8 @@ export default function SwapPage() {
       });
       return result as SwapQuote;
     },
-    enabled: !!fromToken && !!toToken && !!amount && parseFloat(amount) > 0,
+    enabled:
+      !!fromToken && !!toToken && !!amount && parseFloat(amount) > 0,
     refetchInterval: 15_000,
   });
 
@@ -139,7 +164,7 @@ export default function SwapPage() {
 
   const handleSwap = () => {
     if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) {
-      toast.error(t("swap.selectAndEnter", "Select tokens and enter an amount"));
+      toast.error(t("swap.selectBothTokens"));
       return;
     }
     setShowPin(true);
@@ -152,7 +177,7 @@ export default function SwapPage() {
       await useWalletStore.getState().unlock(pin);
       const secret = useWalletStore.getState().getSecretKey();
       if (!secret) {
-        toast.error(t("pin.invalid", "Invalid PIN"));
+        toast.error(t("pin.incorrect"));
         setSubmitting(false);
         return;
       }
@@ -165,7 +190,9 @@ export default function SwapPage() {
       const server = new StellarSdk.Horizon.Server(horizonUrl);
       const account = await server.loadAccount(publicKey!);
       const networkPassphrase =
-        network === "testnet" ? StellarSdk.Networks.TESTNET : StellarSdk.Networks.PUBLIC;
+        network === "testnet"
+          ? StellarSdk.Networks.TESTNET
+          : StellarSdk.Networks.PUBLIC;
 
       const fromAsset = fromToken!.isNative
         ? StellarSdk.Asset.native()
@@ -196,11 +223,18 @@ export default function SwapPage() {
 
       tx.sign(keypair);
       await server.submitTransaction(tx);
-      toast.success(`${t("swap.success", "Swapped")} ${amount} ${fromToken!.code} → ${toToken!.code}`);
+      toast.success(
+        t("swap.swapSuccess", {
+          fromAmount: amount,
+          fromCode: fromToken!.code,
+          toAmount: quote?.estimatedReceive || "?",
+          toCode: toToken!.code,
+        })
+      );
       setAmount("");
     } catch (err: any) {
       console.error("Swap error:", err);
-      toast.error(err?.message || t("swap.failed", "Swap failed"));
+      toast.error(err?.message || t("swap.swapFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -213,20 +247,24 @@ export default function SwapPage() {
         tk.name.toLowerCase().includes(query.toLowerCase())
     );
 
-  const fromBalance = fromToken?.balance ? parseFloat(fromToken.balance) : 0;
+  const fromBalance = fromToken?.balance
+    ? parseFloat(fromToken.balance)
+    : 0;
 
   return (
     <div className="p-3 space-y-2 overflow-y-auto h-full">
       {/* From */}
       <div className="bg-stellar-card border border-stellar-border rounded-xl p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-stellar-muted">{t("swap.youSend", "You send")}</span>
+          <span className="text-[10px] text-stellar-muted">
+            {t("swap.from")}
+          </span>
           {fromToken?.balance != null && (
             <button
               onClick={() => setAmount(fromToken.balance!)}
               className="text-[10px] text-stellar-blue"
             >
-              Max: {parseFloat(fromToken.balance).toFixed(2)}
+              {t("common.max")}: {parseFloat(fromToken.balance).toFixed(2)}
             </button>
           )}
         </div>
@@ -235,14 +273,18 @@ export default function SwapPage() {
             type="number"
             min="0"
             step="any"
-            placeholder="0.00"
+            placeholder={t("swap.enterAmount")}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="flex-1 bg-transparent text-lg text-white font-medium placeholder:text-stellar-muted/40 focus:outline-none min-w-0"
           />
           <PickerButton
             selected={fromToken}
-            onClick={() => { setShowFromPicker(!showFromPicker); setShowToPicker(false); }}
+            placeholder={t("swap.selectToken")}
+            onClick={() => {
+              setShowFromPicker(!showFromPicker);
+              setShowToPicker(false);
+            }}
           />
         </div>
         {showFromPicker && (
@@ -255,14 +297,19 @@ export default function SwapPage() {
               setFromToken(tk);
               setShowFromPicker(false);
               setSearchFrom("");
-              if (toToken?.code === tk.code && toToken?.issuer === tk.issuer) setToToken(null);
+              if (
+                toToken?.code === tk.code &&
+                toToken?.issuer === tk.issuer
+              )
+                setToToken(null);
             }}
             showBalances
+            t={t}
           />
         )}
         {parseFloat(amount) > fromBalance && fromBalance > 0 && (
           <p className="text-[10px] text-red-400 flex items-center gap-1">
-            <AlertCircle size={10} /> {t("swap.exceedsBalance", "Exceeds balance")}
+            <AlertCircle size={10} /> {t("swap.balance", { balance: fromBalance.toFixed(2) })}
           </p>
         )}
       </div>
@@ -279,21 +326,31 @@ export default function SwapPage() {
 
       {/* To */}
       <div className="bg-stellar-card border border-stellar-border rounded-xl p-3 space-y-2">
-        <span className="text-[10px] text-stellar-muted">{t("swap.youReceive", "You receive")}</span>
+        <span className="text-[10px] text-stellar-muted">
+          {t("swap.to")}
+        </span>
         <div className="flex items-center gap-2">
           <div className="flex-1 text-lg font-medium min-w-0">
             {quoteLoading ? (
-              <Loader2 size={18} className="animate-spin text-stellar-muted" />
+              <Loader2
+                size={18}
+                className="animate-spin text-stellar-muted"
+              />
             ) : quote?.estimatedReceive ? (
-              <span className="text-white">{parseFloat(quote.estimatedReceive).toFixed(4)}</span>
+              <span className="text-white">
+                {parseFloat(quote.estimatedReceive).toFixed(4)}
+              </span>
             ) : (
               <span className="text-stellar-muted/40">0.00</span>
             )}
           </div>
           <PickerButton
             selected={toToken}
-            placeholder={t("swap.select", "Select")}
-            onClick={() => { setShowToPicker(!showToPicker); setShowFromPicker(false); }}
+            placeholder={t("swap.selectToken")}
+            onClick={() => {
+              setShowToPicker(!showToPicker);
+              setShowFromPicker(false);
+            }}
           />
         </div>
         {showToPicker && (
@@ -308,6 +365,7 @@ export default function SwapPage() {
               setSearchTo("");
             }}
             showBalances={false}
+            t={t}
           />
         )}
       </div>
@@ -317,60 +375,75 @@ export default function SwapPage() {
         <div className="bg-stellar-card border border-stellar-border rounded-lg px-3 py-2 space-y-1 text-[11px]">
           {quote.rate && (
             <div className="flex justify-between text-stellar-muted">
-              <span>{t("swap.rate", "Rate")}</span>
-              <span className="text-white">1 {fromToken.code} ≈ {parseFloat(quote.rate).toFixed(4)} {toToken.code}</span>
+              <span>{t("swap.rate")}</span>
+              <span className="text-white">
+                1 {fromToken.code} ≈{" "}
+                {parseFloat(quote.rate).toFixed(4)} {toToken.code}
+              </span>
             </div>
           )}
           {quote.path && quote.path.length > 0 && (
             <div className="flex justify-between text-stellar-muted">
-              <span>{t("swap.route", "Route")}</span>
+              <span>{t("swap.path")}</span>
               <span className="text-white truncate ml-2">
-                {fromToken.code} → {quote.path.map((p) => p.asset_code || "XLM").join(" → ")} → {toToken.code}
+                {fromToken.code} →{" "}
+                {quote.path
+                  .map((p) => p.asset_code || "XLM")
+                  .join(" → ")}{" "}
+                → {toToken.code}
               </span>
             </div>
           )}
-          <div className="flex justify-between text-stellar-muted">
-            <span>{t("swap.slippage", "Slippage")}</span>
-            <span className="text-white">1%</span>
-          </div>
         </div>
       )}
 
-      {quoteError && toToken && amount && parseFloat(amount) > 0 && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-[11px] text-red-400">
-          {t("swap.noPath", "No swap path found.")} {network === "testnet" && t("swap.testnetNote", "Testnet has limited liquidity.")}
-        </div>
-      )}
+      {quoteError &&
+        toToken &&
+        amount &&
+        parseFloat(amount) > 0 && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-[11px] text-red-400">
+            {t("swap.noRouteFound")}
+          </div>
+        )}
 
       {/* Swap button */}
       <button
         onClick={handleSwap}
         disabled={
-          !fromToken || !toToken || !amount || parseFloat(amount) <= 0 ||
-          parseFloat(amount) > fromBalance || !quote?.estimatedReceive || submitting
+          !fromToken ||
+          !toToken ||
+          !amount ||
+          parseFloat(amount) <= 0 ||
+          parseFloat(amount) > fromBalance ||
+          !quote?.estimatedReceive ||
+          submitting
         }
         className="w-full py-3 rounded-xl font-medium text-sm text-white bg-gradient-to-r from-stellar-blue to-stellar-purple hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
       >
         {submitting ? (
           <span className="flex items-center justify-center gap-2">
-            <Loader2 size={16} className="animate-spin" /> {t("swap.swapping", "Swapping...")}
+            <Loader2 size={16} className="animate-spin" />{" "}
+            {t("swap.swapping")}
           </span>
         ) : !fromToken || !toToken ? (
-          t("swap.selectTokens", "Select tokens")
+          t("swap.selectBothTokens")
         ) : !amount || parseFloat(amount) <= 0 ? (
-          t("swap.enterAmount", "Enter amount")
+          t("swap.enterAmount")
         ) : parseFloat(amount) > fromBalance ? (
-          t("swap.insufficientBalance", "Insufficient balance")
+          t("send.insufficientBalance")
         ) : !quote?.estimatedReceive ? (
-          t("swap.fetchingQuote", "Fetching quote...")
+          t("swap.gettingQuote")
         ) : (
-          `${t("nav.swap", "Swap")} ${fromToken.code} → ${toToken.code}`
+          t("swap.executeSwap", {
+            from: fromToken.code,
+            to: toToken.code,
+          })
         )}
       </button>
 
       {showPin && (
         <PinModal
-          title={t("swap.confirmSwap", "Confirm Swap")}
+          title={t("pin.title")}
           onSubmit={executeSwap}
           onCancel={() => setShowPin(false)}
         />
@@ -383,7 +456,7 @@ export default function SwapPage() {
 
 function PickerButton({
   selected,
-  placeholder = "Select",
+  placeholder,
   onClick,
 }: {
   selected: TokenOption | null;
@@ -397,8 +470,14 @@ function PickerButton({
     >
       {selected ? (
         <>
-          <TokenIcon code={selected.code} image={selected.image} size={20} />
-          <span className="text-white font-medium text-xs">{selected.code}</span>
+          <TokenIcon
+            code={selected.code}
+            image={selected.image}
+            size={20}
+          />
+          <span className="text-white font-medium text-xs">
+            {selected.code}
+          </span>
         </>
       ) : (
         <span className="text-stellar-muted text-xs">{placeholder}</span>
@@ -415,6 +494,7 @@ function PickerDropdown({
   onSearch,
   onSelect,
   showBalances,
+  t,
 }: {
   tokens: TokenOption[];
   selected: TokenOption | null;
@@ -422,15 +502,19 @@ function PickerDropdown({
   onSearch: (q: string) => void;
   onSelect: (t: TokenOption) => void;
   showBalances: boolean;
+  t: any;
 }) {
   return (
     <div className="bg-stellar-bg border border-stellar-border rounded-lg shadow-2xl overflow-hidden">
       <div className="p-2 border-b border-stellar-border">
         <div className="relative">
-          <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-stellar-muted" />
+          <Search
+            size={12}
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-stellar-muted"
+          />
           <input
             type="text"
-            placeholder="Search…"
+            placeholder={t("swap.searchTokens")}
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             className="w-full bg-stellar-card border border-stellar-border rounded pl-6 pr-6 py-1.5 text-xs text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50"
@@ -452,7 +536,10 @@ function PickerDropdown({
             key={`${tk.code}-${tk.issuer || "native"}`}
             onClick={() => onSelect(tk)}
             className={`w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 ${
-              selected?.code === tk.code && selected?.issuer === tk.issuer ? "bg-stellar-blue/10" : ""
+              selected?.code === tk.code &&
+              selected?.issuer === tk.issuer
+                ? "bg-stellar-blue/10"
+                : ""
             }`}
           >
             <div className="flex items-center gap-2">
@@ -470,7 +557,9 @@ function PickerDropdown({
           </button>
         ))}
         {tokens.length === 0 && (
-          <p className="text-center text-stellar-muted text-[10px] py-4">No tokens found</p>
+          <p className="text-center text-stellar-muted text-[10px] py-4">
+            {t("common.noResults")}
+          </p>
         )}
       </div>
     </div>

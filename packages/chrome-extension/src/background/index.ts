@@ -1,30 +1,18 @@
 // Background service worker for Stellar Wallet extension
 
-// Auto-lock after 15 minutes of inactivity
-const LOCK_TIMEOUT_MINUTES = 15;
-
-chrome.alarms.create("auto-lock", { periodInMinutes: LOCK_TIMEOUT_MINUTES });
+// Keep-alive ping — extensions can go idle
+chrome.alarms.create("keep-alive", { periodInMinutes: 4 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "auto-lock") {
-    chrome.storage.local.get("stellar-wallet", (data) => {
-      if (data["stellar-wallet"]) {
-        const state = JSON.parse(data["stellar-wallet"]);
-        if (state.state?.isUnlocked) {
-          state.state.isUnlocked = false;
-          state.state._secretKey = null;
-          chrome.storage.local.set({ "stellar-wallet": JSON.stringify(state) });
-        }
-      }
-    });
+  if (alarm.name === "keep-alive") {
+    // Just keep the service worker alive
+    console.log("Stellar Wallet: keep-alive ping");
   }
 });
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "KEEP_ALIVE") {
-    // Reset auto-lock timer
-    chrome.alarms.create("auto-lock", { periodInMinutes: LOCK_TIMEOUT_MINUTES });
     sendResponse({ ok: true });
   }
 

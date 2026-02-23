@@ -8,7 +8,14 @@ import NetworkSwitcher from "../../shared/components/NetworkSwitcher";
 import PinModal from "../../shared/components/PinModal";
 import { toast } from "sonner";
 import {
-  Copy, Check, LogOut, Eye, EyeOff, Shield, Globe, User, Lock,
+  Copy,
+  Check,
+  LogOut,
+  Eye,
+  EyeOff,
+  Shield,
+  Globe,
+  User,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -19,8 +26,7 @@ export default function SettingsPage() {
   const getSecretKey = useWalletStore((s) => s.getSecretKey);
   const unlock = useWalletStore((s) => s.unlock);
   const walletLogout = useWalletStore((s) => s.logout);
-
-  const { lock: lockApp, logout: authLogout } = useAuthStore();
+  const authLogout = useAuthStore((s) => s.logout);
 
   const active = accounts.find((a) => a.id === activeAccountId);
   const publicKey = active?.publicKey || "";
@@ -35,7 +41,7 @@ export default function SettingsPage() {
   const copyPublicKey = () => {
     navigator.clipboard.writeText(publicKey);
     setCopiedPk(true);
-    toast.success(t("common.copied", "Copied!"));
+    toast.success(t("common.copied"));
     setTimeout(() => setCopiedPk(false), 2000);
   };
 
@@ -43,15 +49,15 @@ export default function SettingsPage() {
     if (!revealedKey) return;
     navigator.clipboard.writeText(revealedKey);
     setCopiedSk(true);
-    toast.success(t("common.copied", "Copied!"));
+    toast.success(t("common.copied"));
     setTimeout(() => setCopiedSk(false), 2000);
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
+    await authLogout();
     walletLogout();
-    authLogout();
     setShowLogoutConfirm(false);
-    navigate("/onboarding");
+    navigate("/login");
   };
 
   return (
@@ -61,29 +67,31 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2">
           <User size={14} className="text-stellar-muted" />
           <h3 className="text-xs font-semibold text-stellar-muted uppercase tracking-wider">
-            {t("settings.account", "Account")}
+            {t("settings.accountInfo")}
           </h3>
         </div>
 
         {active && (
           <div className="flex items-center justify-between">
-            <span className="text-xs text-stellar-muted">{t("onboarding.walletName", "Name")}</span>
-            <span className="text-xs text-white font-medium">{active.name}</span>
+            <span className="text-xs text-stellar-muted">
+              {t("settings.walletName")}
+            </span>
+            <span className="text-xs text-white font-medium">
+              {active.name}
+            </span>
           </div>
         )}
 
-        {/* Network Switcher */}
         <div>
           <label className="block text-[10px] text-stellar-muted mb-2">
-            {t("settings.network", "Network")}
+            {t("settings.network")}
           </label>
           <NetworkSwitcher />
         </div>
 
-        {/* Public Key */}
         <div>
           <label className="block text-[10px] text-stellar-muted mb-1">
-            {t("settings.publicKey", "Public Key")}
+            {t("settings.publicKey")}
           </label>
           <div
             onClick={copyPublicKey}
@@ -106,7 +114,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2">
           <Shield size={14} className="text-stellar-muted" />
           <h3 className="text-xs font-semibold text-stellar-muted uppercase tracking-wider">
-            {t("settings.security", "Security")}
+            {t("settings.security")}
           </h3>
         </div>
 
@@ -116,14 +124,14 @@ export default function SettingsPage() {
             className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-xs"
           >
             <Eye size={14} />
-            {t("settings.revealSecret", "Reveal Secret Key")}
+            {t("settings.revealSecretKey")}
           </button>
         ) : (
           <div className="space-y-2">
             <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded-lg space-y-2">
               <p className="text-[10px] text-red-400 font-semibold flex items-center gap-1">
                 <Shield size={10} />
-                {t("settings.secretWarning", "Never share your secret key!")}
+                {t("settings.secretKeyWarning")}
               </p>
               <div className="flex items-center gap-1.5">
                 <code className="flex-1 text-[10px] text-white break-all select-all font-mono leading-relaxed">
@@ -142,23 +150,17 @@ export default function SettingsPage() {
               </div>
             </div>
             <button
-              onClick={() => { setRevealedKey(null); setCopiedSk(false); }}
+              onClick={() => {
+                setRevealedKey(null);
+                setCopiedSk(false);
+              }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-xs"
             >
               <EyeOff size={14} />
-              {t("settings.hideSecret", "Hide Secret Key")}
+              {t("settings.hideSecretKey")}
             </button>
           </div>
         )}
-
-        {/* Lock App */}
-        <button
-          onClick={lockApp}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-xs"
-        >
-          <Lock size={14} />
-          {t("settings.lockNow", "Lock App Now")}
-        </button>
       </div>
 
       {/* Language */}
@@ -170,11 +172,11 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2">
             <Globe size={14} className="text-stellar-muted" />
             <h3 className="text-xs font-semibold text-stellar-muted uppercase tracking-wider">
-              {t("settings.language", "Language")}
+              {t("settings.language")}
             </h3>
           </div>
           <span className="text-[10px] text-stellar-blue">
-            {showLang ? t("common.hide", "Hide") : t("common.change", "Change")}
+            {showLang ? t("common.close") : t("common.save")}
           </span>
         </button>
         {showLang && <LanguageSwitcher />}
@@ -186,13 +188,13 @@ export default function SettingsPage() {
         className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs font-medium"
       >
         <LogOut size={14} />
-        {t("settings.logout", "Logout")}
+        {t("settings.logout")}
       </button>
 
       {/* PIN Modal */}
       {showPin && (
         <PinModal
-          title={t("settings.enterPinToReveal", "Enter PIN to reveal secret key")}
+          title={t("settings.revealSecretKey")}
           onSubmit={async (pin) => {
             await unlock(pin);
             const sk = getSecretKey();
@@ -213,23 +215,23 @@ export default function SettingsPage() {
               </div>
             </div>
             <h3 className="text-white text-base font-bold text-center">
-              {t("settings.logout", "Logout")}
+              {t("settings.logout")}
             </h3>
             <p className="text-stellar-muted text-xs text-center leading-relaxed">
-              {t("settings.logoutConfirm", "This will delete all wallets from this device. Make sure you have backed up your secret keys.")}
+              {t("settings.logoutDescription")}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
                 className="flex-1 py-2.5 rounded-xl border border-stellar-border text-stellar-muted text-xs font-medium hover:text-white transition-colors"
               >
-                {t("common.cancel", "Cancel")}
+                {t("common.cancel")}
               </button>
               <button
                 onClick={confirmLogout}
                 className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
               >
-                {t("settings.logout", "Logout")}
+                {t("settings.logout")}
               </button>
             </div>
           </div>
