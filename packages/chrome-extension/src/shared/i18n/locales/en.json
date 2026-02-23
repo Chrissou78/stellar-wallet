@@ -14,6 +14,7 @@
     "back": "Back",
     "save": "Save",
     "delete": "Delete",
+    "next": "Next",
     "noResults": "No results found",
     "showing": "Showing {{count}} {{item}}",
     "operation": "operation",
@@ -53,10 +54,12 @@
     "lastNamePlaceholder": "Doe",
     "createPassword": "Create a strong password",
     "confirmPassword": "Confirm password",
+    "confirmPasswordPlaceholder": "Re-enter your password",
     "repeatPassword": "Repeat your password",
     "creatingAccount": "Creating account...",
     "hasAccount": "Already have an account?",
     "signInLink": "Sign in",
+    "register": "Sign Up",
     "rule8chars": "At least 8 characters",
     "ruleUppercase": "One uppercase letter",
     "ruleNumber": "One number",
@@ -65,8 +68,12 @@
     "accountCreated": "Account created! Welcome to Stellar Wallet.",
     "fillAllFields": "Please fill in all fields",
     "fixPasswordReqs": "Please fix password requirements",
+    "emailRequired": "Email and password are required",
+    "passwordMinLength": "Password must be at least 8 characters",
+    "passwordsMismatch": "Passwords do not match",
     "loginFailed": "Login failed",
-    "registerFailed": "Registration failed"
+    "registerFailed": "Registration failed",
+    "registerSubtitle": "Join Stellar Wallet"
   },
   "onboarding": {
     "title": "Stellar Wallet",
@@ -238,6 +245,7 @@
     "editProfile": "Edit profile",
     "noNameSet": "No name set",
     "account": "Wallet",
+    "activeWallet": "Active Wallet",
     "network": "Network",
     "testnet": "Testnet",
     "mainnet": "Mainnet",
@@ -246,6 +254,7 @@
     "revealSecret": "Reveal Secret Key",
     "hideSecret": "Hide Secret Key",
     "enterPinToReveal": "Enter PIN to reveal your secret key",
+    "secretKey": "Secret Key",
     "secretWarning": "Never share your secret key with anyone!",
     "changePassword": "Change Password",
     "currentPassword": "Current password",
@@ -258,9 +267,11 @@
     "profileUpdated": "Profile updated",
     "profileUpdateFailed": "Failed to update profile",
     "publicKey": "Public Key",
+    "lockApp": "Lock App",
     "signOut": "Sign Out",
     "signOutConfirm": "You will be signed out. Your wallet keys remain encrypted on this device. You can sign back in anytime.",
     "logout": "Sign Out",
+    "logoutTitle": "Sign Out",
     "logoutConfirm": "You will be signed out. Your wallet keys remain encrypted on this device. You can sign back in anytime.",
     "version": "Version"
   },
@@ -273,7 +284,19 @@
     "active": "Active"
   },
   "pin": {
+    "createTitle": "Create PIN",
+    "createSubtitle": "Set a 4-6 digit PIN to secure your wallet",
+    "confirmTitle": "Confirm PIN",
+    "confirmSubtitle": "Re-enter your PIN to confirm",
+    "unlockTitle": "Unlock Wallet",
     "enterPin": "Enter your PIN",
-    "pinPlaceholder": "Enter your PIN"
+    "enterToProceed": "Enter PIN to proceed",
+    "pinPlaceholder": "Enter your PIN",
+    "unlock": "Unlock",
+    "incorrect": "Incorrect PIN",
+    "tooShort": "PIN must be at least 4 digits",
+    "mismatch": "PINs do not match",
+    "tooManyAttempts": "Too many failed attempts. You may log out and sign in again.",
+    "confirm": "Confirm"
   }
 }

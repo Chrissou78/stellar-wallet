@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
-import { useWalletStore } from "../src/shared/store/wallet";
 import { useAuthStore } from "../src/shared/store/auth";
+import { useWalletStore } from "../src/shared/store/wallet";
 
 export default function Index() {
   const router = useRouter();
-  const accounts = useWalletStore((s) => s.accounts);
-  const { isLocked, hasPin, initialize } = useAuthStore();
   const [ready, setReady] = useState(false);
+
+  const { isAuthenticated, hasPin, isLocked, loadProfile } = useAuthStore();
+  const accounts = useWalletStore((s) => s.accounts);
 
   useEffect(() => {
     const init = async () => {
-      await initialize();
+      await loadProfile();
       setReady(true);
     };
     init();
@@ -21,24 +22,22 @@ export default function Index() {
   useEffect(() => {
     if (!ready) return;
 
-    if (accounts.length === 0) {
-      // No wallet — go to onboarding
-      router.replace("/onboarding");
+    if (!isAuthenticated) {
+      router.replace("/login");
     } else if (!hasPin) {
-      // Has wallet but no app PIN — set one up
       router.replace("/setup-pin");
     } else if (isLocked) {
-      // Has PIN and locked — go to lock screen
       router.replace("/lock-screen");
+    } else if (accounts.length === 0) {
+      router.replace("/onboarding");
     } else {
-      // Unlocked — go to app
       router.replace("/(tabs)");
     }
-  }, [ready, accounts.length, hasPin, isLocked]);
+  }, [ready, isAuthenticated, hasPin, isLocked, accounts.length]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#0a0e1a", justifyContent: "center", alignItems: "center" }}>
-      <ActivityIndicator color="#3b82f6" size="large" />
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" }}>
+      <ActivityIndicator size="large" color="#818cf8" />
     </View>
   );
 }
