@@ -7,6 +7,8 @@ import { TokenService } from "./modules/tokens/token.service";
 import { SwapService } from "./modules/swap/swap.service";
 import { runTokenIndexer } from "./jobs/token-indexer";
 import { syncTomlImages } from "./lib/toml-sync.js";
+import { authRoutes } from "./routes/auth";
+import { walletRoutes } from "./routes/wallets";
 
 
 const app = Fastify({ logger: true });
@@ -23,6 +25,9 @@ async function bootstrap() {
       config.WEB_APP_URL,
     ].filter(Boolean),
   });
+
+  app.register(authRoutes);
+  app.register(walletRoutes);
 
   // ═══════════════════════════════════════
   // Health

@@ -1,62 +1,162 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { authApi, setTokens, clearTokens, getAccessToken, userWalletApi } from "../lib/api";
 
-interface AuthState {
-  isLocked: boolean;
-  hasPassword: boolean;
-  _passwordHash: string | null;
-
-  setPassword: (password: string) => void;
-  verifyPassword: (password: string) => boolean;
-  lock: () => void;
-  unlock: () => void;
-  logout: () => void;
+export interface User {
+  id: number;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  avatar: string | null;
+  preferredLanguage: string;
+  preferredNetwork: string;
 }
 
-// Simple hash for client-side password verification
-function hashPassword(password: string): string {
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  // Add salt-like suffix with length
-  return `${hash.toString(36)}_${password.length}_${password.charCodeAt(0).toString(36)}`;
+export interface ServerWallet {
+  id: number;
+  name: string;
+  publicKey: string;
+  network: string;
+  isActive: boolean;
+}
+
+interface AuthState {
+  // User state
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+
+  // Server wallets
+  serverWallets: ServerWallet[];
+
+  // Actions
+  register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  loadProfile: () => Promise<void>;
+  updateProfile: (data: { firstName?: string; lastName?: string; preferredLanguage?: string; preferredNetwork?: string }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+
+  // Server wallet actions
+  loadWallets: () => Promise<void>;
+  addWallet: (data: { name: string; publicKey: string; encryptedSecret?: string; network?: string }) => Promise<void>;
+  activateWallet: (id: number) => Promise<void>;
+  renameWallet: (id: number, name: string) => Promise<void>;
+  removeWallet: (id: number) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      isLocked: true,
-      hasPassword: false,
-      _passwordHash: null,
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      serverWallets: [],
 
-      setPassword: (password: string) => {
-        const hashed = hashPassword(password);
-        set({ _passwordHash: hashed, hasPassword: true, isLocked: false });
+      register: async (email, password, firstName, lastName) => {
+        set({ isLoading: true });
+        try {
+          const res = await authApi.register({ email, password, firstName, lastName });
+          setTokens(res.accessToken, res.refreshToken);
+          set({
+            user: res.user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } catch (err) {
+          set({ isLoading: false });
+          throw err;
+        }
       },
 
-      verifyPassword: (password: string) => {
-        const hashed = hashPassword(password);
-        return hashed === get()._passwordHash;
+      login: async (email, password) => {
+        set({ isLoading: true });
+        try {
+          const res = await authApi.login({ email, password });
+          setTokens(res.accessToken, res.refreshToken);
+          set({
+            user: res.user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          // Load wallets after login
+          await get().loadWallets();
+        } catch (err) {
+          set({ isLoading: false });
+          throw err;
+        }
       },
 
-      lock: () => set({ isLocked: true }),
-      unlock: () => set({ isLocked: false }),
+      logout: async () => {
+        try {
+          await authApi.logout();
+        } catch {
+          // ignore — clear local state regardless
+        }
+        clearTokens();
+        set({
+          user: null,
+          isAuthenticated: false,
+          serverWallets: [],
+        });
+      },
 
-      logout: () => set({
-        isLocked: true,
-        hasPassword: false,
-        _passwordHash: null,
-      }),
+      loadProfile: async () => {
+        if (!getAccessToken()) return;
+        try {
+          const res = await authApi.me();
+          set({ user: res.user, isAuthenticated: true, serverWallets: res.wallets || [] });
+        } catch {
+          // Token expired and refresh failed
+          clearTokens();
+          set({ user: null, isAuthenticated: false, serverWallets: [] });
+        }
+      },
+
+      updateProfile: async (data) => {
+        const res = await authApi.updateProfile(data);
+        set({ user: res.user });
+      },
+
+      changePassword: async (currentPassword, newPassword) => {
+        await authApi.changePassword({ currentPassword, newPassword });
+      },
+
+      loadWallets: async () => {
+        try {
+          const wallets = await userWalletApi.list();
+          set({ serverWallets: wallets });
+        } catch {
+          // ignore
+        }
+      },
+
+      addWallet: async (data) => {
+        await userWalletApi.add(data);
+        await get().loadWallets();
+      },
+
+      activateWallet: async (id) => {
+        await userWalletApi.activate(id);
+        await get().loadWallets();
+      },
+
+      renameWallet: async (id, name) => {
+        await userWalletApi.rename(id, name);
+        await get().loadWallets();
+      },
+
+      removeWallet: async (id) => {
+        await userWalletApi.remove(id);
+        await get().loadWallets();
+      },
     }),
     {
       name: "stellar-wallet-auth",
       partialize: (state) => ({
-        hasPassword: state.hasPassword,
-        _passwordHash: state._passwordHash,
-        isLocked: true, // always locked on reload
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        serverWallets: state.serverWallets,
       }),
     }
   )

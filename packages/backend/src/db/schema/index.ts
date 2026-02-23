@@ -26,7 +26,6 @@ export const tokens = pgTable(
     assetIssuer: text("asset_issuer"),
     homeDomain: text("home_domain"),
 
-    // stellar.toml metadata
     tomlName: text("toml_name"),
     tomlOrg: text("toml_org"),
     tomlImage: text("toml_image"),
@@ -35,7 +34,6 @@ export const tokens = pgTable(
     anchorAsset: text("anchor_asset"),
     anchorType: text("anchor_type"),
 
-    // On-chain stats
     totalSupply: numeric("total_supply"),
     trustlineCount: integer("trustline_count").default(0),
     fundedTrustlines: integer("funded_trustlines").default(0),
@@ -43,7 +41,6 @@ export const tokens = pgTable(
     tradeCount: bigint("trade_count", { mode: "number" }).default(0),
     volume7d: numeric("volume_7d").default("0"),
 
-    // Composite rating (from StellarExpert or self-computed)
     ratingAge: smallint("rating_age").default(0),
     ratingTrades: smallint("rating_trades").default(0),
     ratingPayments: smallint("rating_payments").default(0),
@@ -53,7 +50,6 @@ export const tokens = pgTable(
     ratingInterop: smallint("rating_interop").default(0),
     ratingAverage: numeric("rating_average", { precision: 3, scale: 1 }).default("0"),
 
-    // Flags
     isVerified: boolean("is_verified").default(false),
     isSpam: boolean("is_spam").default(false),
     isFeatured: boolean("is_featured").default(false),
@@ -76,7 +72,7 @@ export const tokens = pgTable(
 // ════════════════════════════════════════════
 
 export const contractTokens = pgTable("contract_tokens", {
-  id: text("id").primaryKey(), // Contract address (C...)
+  id: text("id").primaryKey(),
   contractType: text("contract_type").notNull(),
   assetCode: text("asset_code"),
   assetIssuer: text("asset_issuer"),
@@ -169,7 +165,83 @@ export const liquidityPools = pgTable(
 );
 
 // ════════════════════════════════════════════
-// Relations
+// Sync State
+// ════════════════════════════════════════════
+
+export const syncState = pgTable("sync_state", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// ════════════════════════════════════════════
+// Users — Authentication & Profile
+// ════════════════════════════════════════════
+
+export const users = pgTable(
+  "users",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    email: text("email").notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    avatar: text("avatar"),
+    preferredLanguage: text("preferred_language").default("en"),
+    preferredNetwork: text("preferred_network").default("testnet"),
+    isEmailVerified: boolean("is_email_verified").default(false),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("idx_users_email").on(table.email),
+  ]
+);
+
+// ════════════════════════════════════════════
+// User Wallets — Linked Stellar wallets
+// ════════════════════════════════════════════
+
+export const userWallets = pgTable(
+  "user_wallets",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: bigint("user_id", { mode: "number" }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    publicKey: text("public_key").notNull(),
+    encryptedSecret: text("encrypted_secret"),
+    network: text("network").notNull().default("testnet"),
+    isActive: boolean("is_active").default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("idx_user_wallets_user_pubkey").on(table.userId, table.publicKey),
+    index("idx_user_wallets_user").on(table.userId),
+  ]
+);
+
+// ════════════════════════════════════════════
+// Refresh Tokens — For JWT rotation
+// ════════════════════════════════════════════
+
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: bigint("user_id", { mode: "number" }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index("idx_refresh_tokens_user").on(table.userId),
+    index("idx_refresh_tokens_token").on(table.token),
+  ]
+);
+
+// ════════════════════════════════════════════
+// ALL Relations (must come after ALL tables)
 // ════════════════════════════════════════════
 
 export const tokensRelations = relations(tokens, ({ many }) => ({
@@ -195,8 +267,21 @@ export const userTokensRelations = relations(userTokens, ({ one }) => ({
   }),
 }));
 
-export const syncState = pgTable("sync_state", {
-  key: text("key").primaryKey(),
-  value: text("value").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+export const usersRelations = relations(users, ({ many }) => ({
+  wallets: many(userWallets),
+  refreshTokens: many(refreshTokens),
+}));
+
+export const userWalletsRelations = relations(userWallets, ({ one }) => ({
+  user: one(users, {
+    fields: [userWallets.userId],
+    references: [users.id],
+  }),
+}));
+
+export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [refreshTokens.userId],
+    references: [users.id],
+  }),
+}));

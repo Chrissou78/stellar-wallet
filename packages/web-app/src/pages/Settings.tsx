@@ -6,7 +6,7 @@ import { useAuthStore } from "../store/auth";
 import { useNavigate } from "react-router-dom";
 import PinModal from "../components/PinModal";
 import { toast } from "sonner";
-import { Copy, Check, LogOut, Eye, EyeOff, Shield, Lock } from "lucide-react";
+import { Copy, Check, LogOut, Eye, EyeOff, Shield, KeyRound, User, Loader2 } from "lucide-react";
 import NetworkSwitcher from "../components/NetworkSwitcher";
 
 export default function SettingsPage() {
@@ -18,7 +18,7 @@ export default function SettingsPage() {
   const walletLogout = useWalletStore((s) => s.logout);
   const navigate = useNavigate();
 
-  const { lock: lockApp, logout: authLogout } = useAuthStore();
+  const { user, logout: authLogout, changePassword, updateProfile } = useAuthStore();
 
   const active = accounts.find((a) => a.id === activeAccountId);
   const publicKey = active?.publicKey || "";
@@ -28,6 +28,19 @@ export default function SettingsPage() {
   const [showPin, setShowPin] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // Password change
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  // Profile edit
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [firstName, setFirstName] = useState(user?.firstName || "");
+  const [lastName, setLastName] = useState(user?.lastName || "");
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const handleCopyPublicKey = () => {
     navigator.clipboard.writeText(publicKey);
@@ -53,21 +66,129 @@ export default function SettingsPage() {
     setCopiedSk(false);
   };
 
-  const confirmLogout = () => {
+  const handleChangePassword = async () => {
+    if (!currentPassword) return toast.error(t("settings.currentPasswordRequired", "Current password is required"));
+    if (newPassword.length < 8) return toast.error(t("auth.rule8chars"));
+    if (!/[A-Z]/.test(newPassword)) return toast.error(t("auth.ruleUppercase"));
+    if (!/\d/.test(newPassword)) return toast.error(t("auth.ruleNumber"));
+    if (newPassword !== confirmNewPassword) return toast.error(t("auth.ruleMatch"));
+
+    setPasswordLoading(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      toast.success(t("settings.passwordChanged"));
+      setShowPasswordChange(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err: any) {
+      toast.error(err.message || t("settings.passwordChangeFailed"));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileLoading(true);
+    try {
+      await updateProfile({
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+      });
+      toast.success(t("settings.profileUpdated"));
+      setEditingProfile(false);
+    } catch (err: any) {
+      toast.error(err.message || t("settings.profileUpdateFailed"));
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const confirmLogout = async () => {
+    await authLogout();
     walletLogout();
-    authLogout();
     setShowLogoutConfirm(false);
-    navigate("/");
+    navigate("/login");
   };
 
   return (
     <div className="space-y-6 max-w-lg">
       <h1 className="text-2xl font-bold text-white">{t("settings.title", "Settings")}</h1>
 
-      {/* Account Info */}
+      {/* Profile */}
+      {user && (
+        <div className="bg-stellar-card border border-stellar-border rounded-2xl p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-stellar-muted uppercase tracking-wider">
+            {t("settings.profile", "Profile")}
+          </h2>
+
+          {!editingProfile ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-stellar-blue to-stellar-purple flex items-center justify-center">
+                  <User size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">
+                    {user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : t("settings.noNameSet", "No name set")}
+                  </p>
+                  <p className="text-sm text-stellar-muted">{user.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setFirstName(user.firstName || "");
+                  setLastName(user.lastName || "");
+                  setEditingProfile(true);
+                }}
+                className="text-sm text-stellar-blue hover:text-stellar-purple transition-colors"
+              >
+                {t("settings.editProfile", "Edit profile")}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder={t("auth.firstNamePlaceholder")}
+                  className="px-3 py-2.5 rounded-lg bg-stellar-dark border border-stellar-border text-white text-sm placeholder:text-stellar-muted/50 focus:outline-none focus:border-stellar-blue"
+                />
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder={t("auth.lastNamePlaceholder")}
+                  className="px-3 py-2.5 rounded-lg bg-stellar-dark border border-stellar-border text-white text-sm placeholder:text-stellar-muted/50 focus:outline-none focus:border-stellar-blue"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditingProfile(false)}
+                  className="px-4 py-2 rounded-lg border border-stellar-border text-stellar-muted text-sm hover:text-white transition-colors"
+                >
+                  {t("common.cancel", "Cancel")}
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={profileLoading}
+                  className="px-4 py-2 rounded-lg bg-stellar-blue text-white text-sm font-medium hover:bg-stellar-purple transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {profileLoading && <Loader2 size={14} className="animate-spin" />}
+                  {t("common.save", "Save")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Wallet Info */}
       <div className="bg-stellar-card border border-stellar-border rounded-2xl p-6 space-y-4">
         <h2 className="text-sm font-semibold text-stellar-muted uppercase tracking-wider">
-          {t("settings.account", "Account")}
+          {t("settings.account", "Wallet")}
         </h2>
 
         {active && (
@@ -163,14 +284,85 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Lock App */}
-        <button
-          onClick={lockApp}
-          className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
-        >
-          <Lock size={16} />
-          {t("settings.lockNow", "Lock App Now")}
-        </button>
+        {/* Change Password */}
+        {!showPasswordChange ? (
+          <button
+            onClick={() => setShowPasswordChange(true)}
+            className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-border text-stellar-muted hover:text-white hover:bg-white/5 transition-colors text-sm"
+          >
+            <KeyRound size={16} />
+            {t("settings.changePassword", "Change Password")}
+          </button>
+        ) : (
+          <div className="space-y-3 p-4 bg-stellar-dark/50 border border-stellar-border rounded-lg">
+            <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <KeyRound size={16} className="text-stellar-blue" />
+              {t("settings.changePassword", "Change Password")}
+            </h3>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder={t("settings.currentPassword", "Current password")}
+              className="w-full px-3 py-2.5 rounded-lg bg-stellar-dark border border-stellar-border text-white text-sm placeholder:text-stellar-muted/50 focus:outline-none focus:border-stellar-blue"
+            />
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder={t("settings.newPassword", "New password (min 8 chars, 1 uppercase, 1 number)")}
+              className="w-full px-3 py-2.5 rounded-lg bg-stellar-dark border border-stellar-border text-white text-sm placeholder:text-stellar-muted/50 focus:outline-none focus:border-stellar-blue"
+            />
+            <input
+              type="password"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              placeholder={t("settings.confirmNewPassword", "Confirm new password")}
+              className="w-full px-3 py-2.5 rounded-lg bg-stellar-dark border border-stellar-border text-white text-sm placeholder:text-stellar-muted/50 focus:outline-none focus:border-stellar-blue"
+            />
+            {newPassword.length > 0 && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <Check size={12} className={newPassword.length >= 8 ? "text-green-400" : "text-stellar-muted/40"} />
+                  <span className={newPassword.length >= 8 ? "text-green-400" : "text-stellar-muted/40"}>At least 8 characters</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Check size={12} className={/[A-Z]/.test(newPassword) ? "text-green-400" : "text-stellar-muted/40"} />
+                  <span className={/[A-Z]/.test(newPassword) ? "text-green-400" : "text-stellar-muted/40"}>One uppercase letter</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Check size={12} className={/\d/.test(newPassword) ? "text-green-400" : "text-stellar-muted/40"} />
+                  <span className={/\d/.test(newPassword) ? "text-green-400" : "text-stellar-muted/40"}>One number</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Check size={12} className={newPassword === confirmNewPassword && confirmNewPassword.length > 0 ? "text-green-400" : "text-stellar-muted/40"} />
+                  <span className={newPassword === confirmNewPassword && confirmNewPassword.length > 0 ? "text-green-400" : "text-stellar-muted/40"}>Passwords match</span>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setShowPasswordChange(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmNewPassword("");
+                }}
+                className="px-4 py-2 rounded-lg border border-stellar-border text-stellar-muted text-sm hover:text-white transition-colors"
+              >
+                {t("common.cancel", "Cancel")}
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={passwordLoading}
+                className="px-4 py-2 rounded-lg bg-stellar-blue text-white text-sm font-medium hover:bg-stellar-purple transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {passwordLoading && <Loader2 size={14} className="animate-spin" />}
+                {t("settings.updatePassword", "Update Password")}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Logout */}
         <button
@@ -178,7 +370,7 @@ export default function SettingsPage() {
           className="flex items-center gap-2 w-full px-4 py-3 rounded-lg border border-stellar-danger/30 text-stellar-danger hover:bg-stellar-danger/10 transition-colors text-sm"
         >
           <LogOut size={16} />
-          {t("settings.logout", "Logout")}
+          {t("settings.logout", "Sign Out")}
         </button>
       </div>
 
@@ -206,10 +398,10 @@ export default function SettingsPage() {
               </div>
             </div>
             <h3 className="text-white text-lg font-bold text-center">
-              {t("settings.logout", "Logout")}
+              {t("settings.logout", "Sign Out")}
             </h3>
             <p className="text-stellar-muted text-sm text-center">
-              {t("settings.logoutConfirm", "This will delete all wallets from this device. Make sure you have backed up your secret keys.")}
+              {t("settings.logoutConfirm", "You will be signed out. Your wallet keys remain encrypted on this device. You can sign back in anytime.")}
             </p>
             <div className="flex gap-3">
               <button
@@ -222,7 +414,7 @@ export default function SettingsPage() {
                 onClick={confirmLogout}
                 className="flex-1 py-3 rounded-xl bg-stellar-danger hover:bg-red-600 text-white text-sm font-medium transition-colors"
               >
-                {t("settings.logout", "Logout")}
+                {t("settings.logout", "Sign Out")}
               </button>
             </div>
           </div>

@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";  // <-- add
+import { useTranslation } from "react-i18next";
 import { useBalances } from "../hooks/useBalances";
 import { useWalletStore } from "../store/wallet";
 import TokenIcon from "../components/TokenIcon";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { t } = useTranslation();  // <-- add
+  const { t } = useTranslation();
   const publicKey = useWalletStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.publicKey ?? null
   );
@@ -34,9 +34,7 @@ export default function DashboardPage() {
             <Loader2 className="animate-spin text-stellar-muted" size={32} />
           </div>
         ) : !balances || balances.length === 0 ? (
-          <p className="text-stellar-muted text-center py-12">
-            {t("dashboard.noAssets")}
-          </p>
+          <p className="text-stellar-muted text-center py-12">{t("dashboard.noAssets")}</p>
         ) : (
           <div className="space-y-2">
             {balances.map((b) => (
@@ -50,11 +48,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium text-white">{b.assetCode}</p>
                     <p className="text-xs text-stellar-muted">
-                      {b.token?.tomlName ||
-                        b.token?.domain ||
-                        (b.assetType === "native"
-                          ? t("dashboard.stellarLumens")
-                          : b.assetIssuer?.slice(0, 12) + "...")}
+                      {b.token?.tomlName || b.token?.domain || (b.assetType === "native" ? t("dashboard.stellarLumens") : b.assetIssuer?.slice(0, 12) + "...")}
                     </p>
                   </div>
                 </div>

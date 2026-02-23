@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import { Copy, Check, Download, ChevronDown, Search, X } from "lucide-react";
 import { useWalletStore } from "../store/wallet";
@@ -17,6 +18,7 @@ interface TokenOption {
 }
 
 export default function ReceivePage() {
+  const { t } = useTranslation();
   const publicKey = useWalletStore(
     (s) => s.accounts.find((a) => a.id === s.activeAccountId)?.publicKey ?? null
   );
@@ -34,12 +36,10 @@ export default function ReceivePage() {
   const [showPicker, setShowPicker] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Build token list: user balances first, then featured tokens not already held
   const tokenOptions = useMemo<TokenOption[]>(() => {
     const options: TokenOption[] = [];
     const seen = new Set<string>();
 
-    // User's current balances
     if (balances) {
       for (const b of balances) {
         const key = `${b.assetCode}-${b.assetIssuer || "native"}`;
@@ -48,7 +48,7 @@ export default function ReceivePage() {
         options.push({
           code: b.assetCode,
           issuer: b.assetIssuer || null,
-          name: b.token?.tomlName || (b.assetType === "native" ? "Stellar Lumens" : b.assetCode),
+          name: b.token?.tomlName || (b.assetType === "native" ? t("dashboard.stellarLumens") : b.assetCode),
           image: b.token?.tomlImage || null,
           isNative: b.assetType === "native",
           balance: b.balance,
@@ -56,33 +56,18 @@ export default function ReceivePage() {
       }
     }
 
-    // Featured tokens the user doesn't hold yet
-    const featured = Array.isArray(featuredRaw)
-      ? featuredRaw
-      : Array.isArray((featuredRaw as any)?.data)
-        ? (featuredRaw as any).data
-        : [];
-
-    for (const t of featured) {
-      const code = t.assetCode || t.asset_code || "";
-      const issuer = t.assetIssuer || t.asset_issuer || null;
+    const featured = Array.isArray(featuredRaw) ? featuredRaw : Array.isArray((featuredRaw as any)?.data) ? (featuredRaw as any).data : [];
+    for (const tk of featured) {
+      const code = tk.assetCode || tk.asset_code || "";
+      const issuer = tk.assetIssuer || tk.asset_issuer || null;
       const key = `${code}-${issuer || "native"}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      options.push({
-        code,
-        issuer,
-        name: t.tomlName || t.toml_name || code,
-        image: t.tomlImage || t.toml_image || null,
-        isNative: (t.assetType || t.asset_type) === "native",
-        balance: undefined,
-      });
+      options.push({ code, issuer, name: tk.tomlName || tk.toml_name || code, image: tk.tomlImage || tk.toml_image || null, isNative: (tk.assetType || tk.asset_type) === "native", balance: undefined });
     }
-
     return options;
-  }, [balances, featuredRaw]);
+  }, [balances, featuredRaw, t]);
 
-  // Build SEP-7 URI
   const sep7Uri = useMemo(() => {
     if (!publicKey) return "";
     let uri = `web+stellar:pay?destination=${publicKey}`;
@@ -125,9 +110,7 @@ export default function ReceivePage() {
   };
 
   const filteredTokens = tokenOptions.filter(
-    (t) =>
-      t.code.toLowerCase().includes(search.toLowerCase()) ||
-      t.name.toLowerCase().includes(search.toLowerCase())
+    (tk) => tk.code.toLowerCase().includes(search.toLowerCase()) || tk.name.toLowerCase().includes(search.toLowerCase())
   );
 
   if (!publicKey) return null;
@@ -135,232 +118,107 @@ export default function ReceivePage() {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Receive</h1>
-        <p className="mt-1 text-sm text-stellar-muted">
-          Share your address or QR code to receive payments
-        </p>
+        <h1 className="text-2xl font-bold text-white">{t("receive.title")}</h1>
+        <p className="mt-1 text-sm text-stellar-muted">{t("receive.subtitle")}</p>
       </div>
 
       {/* Token Picker */}
       <div className="relative">
-        <label className="block text-sm font-medium text-stellar-muted mb-2">
-          Token to receive
-        </label>
-        <button
-          onClick={() => setShowPicker(!showPicker)}
-          className="w-full flex items-center justify-between bg-stellar-card border border-stellar-border rounded-xl px-4 py-3 hover:border-stellar-blue/50 transition-colors"
-        >
+        <label className="block text-sm font-medium text-stellar-muted mb-2">{t("receive.tokenToReceive")}</label>
+        <button onClick={() => setShowPicker(!showPicker)} className="w-full flex items-center justify-between bg-stellar-card border border-stellar-border rounded-xl px-4 py-3 hover:border-stellar-blue/50 transition-colors">
           <div className="flex items-center gap-3">
-            <TokenIcon
-              code={selectedToken?.code || "XLM"}
-              image={selectedToken?.image}
-              size={32}
-            />
+            <TokenIcon code={selectedToken?.code || "XLM"} image={selectedToken?.image} size={32} />
             <div className="text-left">
-              <p className="text-white font-medium">
-                {selectedToken?.code || "XLM"}
-              </p>
+              <p className="text-white font-medium">{selectedToken?.code || "XLM"}</p>
               <p className="text-xs text-stellar-muted">
-                {selectedToken?.name || "Stellar Lumens"}
+                {selectedToken?.name || t("dashboard.stellarLumens")}
                 {selectedToken?.balance != null && (
                   <span className="ml-2 text-stellar-blue">
-                    Balance: {parseFloat(selectedToken.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                    {t("common.balance")}: {parseFloat(selectedToken.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                   </span>
                 )}
               </p>
             </div>
           </div>
-          <ChevronDown
-            size={18}
-            className={`text-stellar-muted transition-transform ${showPicker ? "rotate-180" : ""}`}
-          />
+          <ChevronDown size={18} className={`text-stellar-muted transition-transform ${showPicker ? "rotate-180" : ""}`} />
         </button>
 
-        {/* Dropdown */}
         {showPicker && (
           <div className="absolute z-50 mt-2 w-full bg-stellar-card border border-stellar-border rounded-xl shadow-2xl overflow-hidden">
-            {/* Search */}
             <div className="p-3 border-b border-stellar-border">
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stellar-muted" />
-                <input
-                  type="text"
-                  placeholder="Search tokens..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-stellar-bg border border-stellar-border rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50"
-                  autoFocus
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stellar-muted hover:text-white"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
+                <input type="text" placeholder={t("receive.searchTokens")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-stellar-bg border border-stellar-border rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50" autoFocus />
+                {search && (<button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-stellar-muted hover:text-white"><X size={14} /></button>)}
               </div>
             </div>
-
-            {/* Token list */}
             <div className="max-h-64 overflow-y-auto">
-              {/* Any token (no filter) */}
-              <button
-                onClick={() => {
-                  setSelectedToken(null);
-                  setShowPicker(false);
-                  setSearch("");
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors ${
-                  !selectedToken ? "bg-stellar-blue/10" : ""
-                }`}
-              >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stellar-blue to-stellar-purple flex items-center justify-center text-white text-xs font-bold">
-                  *
-                </div>
+              <button onClick={() => { setSelectedToken(null); setShowPicker(false); setSearch(""); }} className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors ${!selectedToken ? "bg-stellar-blue/10" : ""}`}>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stellar-blue to-stellar-purple flex items-center justify-center text-white text-xs font-bold">*</div>
                 <div className="text-left">
-                  <p className="text-white text-sm font-medium">Any token</p>
-                  <p className="text-xs text-stellar-muted">Receive any Stellar asset</p>
+                  <p className="text-white text-sm font-medium">{t("receive.anyToken")}</p>
+                  <p className="text-xs text-stellar-muted">{t("receive.anyTokenDesc")}</p>
                 </div>
               </button>
-
-              {filteredTokens.map((t) => {
-                const isSelected =
-                  selectedToken?.code === t.code &&
-                  selectedToken?.issuer === t.issuer;
-
+              {filteredTokens.map((tk) => {
+                const isSelected = selectedToken?.code === tk.code && selectedToken?.issuer === tk.issuer;
                 return (
-                  <button
-                    key={`${t.code}-${t.issuer || "native"}`}
-                    onClick={() => {
-                      setSelectedToken(t);
-                      setShowPicker(false);
-                      setSearch("");
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors ${
-                      isSelected ? "bg-stellar-blue/10" : ""
-                    }`}
-                  >
+                  <button key={`${tk.code}-${tk.issuer || "native"}`} onClick={() => { setSelectedToken(tk); setShowPicker(false); setSearch(""); }} className={`w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors ${isSelected ? "bg-stellar-blue/10" : ""}`}>
                     <div className="flex items-center gap-3">
-                      <TokenIcon code={t.code} image={t.image} size={32} />
+                      <TokenIcon code={tk.code} image={tk.image} size={32} />
                       <div className="text-left">
-                        <p className="text-white text-sm font-medium">{t.code}</p>
-                        <p className="text-xs text-stellar-muted">{t.name}</p>
+                        <p className="text-white text-sm font-medium">{tk.code}</p>
+                        <p className="text-xs text-stellar-muted">{tk.name}</p>
                       </div>
                     </div>
-                    {t.balance != null && (
-                      <span className="text-xs text-stellar-muted font-mono">
-                        {parseFloat(t.balance).toLocaleString(undefined, {
-                          maximumFractionDigits: 4,
-                        })}
-                      </span>
-                    )}
+                    {tk.balance != null && (<span className="text-xs text-stellar-muted font-mono">{parseFloat(tk.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>)}
                   </button>
                 );
               })}
-
-              {filteredTokens.length === 0 && (
-                <p className="text-center text-stellar-muted text-sm py-6">
-                  No tokens found
-                </p>
-              )}
+              {filteredTokens.length === 0 && (<p className="text-center text-stellar-muted text-sm py-6">{t("receive.noTokens")}</p>)}
             </div>
           </div>
         )}
       </div>
 
-      {/* Amount (optional) */}
+      {/* Amount */}
       <div>
-        <label className="block text-sm font-medium text-stellar-muted mb-2">
-          Amount (optional)
-        </label>
+        <label className="block text-sm font-medium text-stellar-muted mb-2">{t("receive.amount")}</label>
         <div className="relative">
-          <input
-            type="number"
-            min="0"
-            step="any"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full bg-stellar-card border border-stellar-border rounded-xl px-4 py-3 text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50"
-          />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-stellar-muted">
-            {selectedToken?.code || "XLM"}
-          </span>
+          <input type="number" min="0" step="any" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-stellar-card border border-stellar-border rounded-xl px-4 py-3 text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50" />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-stellar-muted">{selectedToken?.code || "XLM"}</span>
         </div>
       </div>
 
-      {/* Memo (optional) */}
+      {/* Memo */}
       <div>
-        <label className="block text-sm font-medium text-stellar-muted mb-2">
-          Memo (optional)
-        </label>
-        <input
-          type="text"
-          maxLength={28}
-          placeholder="Add a memo for the sender"
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          className="w-full bg-stellar-card border border-stellar-border rounded-xl px-4 py-3 text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50"
-        />
+        <label className="block text-sm font-medium text-stellar-muted mb-2">{t("receive.memo")}</label>
+        <input type="text" maxLength={28} placeholder={t("receive.memoPlaceholder")} value={memo} onChange={(e) => setMemo(e.target.value)} className="w-full bg-stellar-card border border-stellar-border rounded-xl px-4 py-3 text-white placeholder:text-stellar-muted focus:outline-none focus:border-stellar-blue/50" />
       </div>
 
       {/* QR Code */}
       <div className="bg-stellar-card border border-stellar-border rounded-2xl p-8 flex flex-col items-center">
         <div className="bg-white rounded-xl p-4">
-          <QRCodeSVG
-            id="receive-qr"
-            value={qrValue}
-            size={220}
-            level="M"
-            imageSettings={
-              selectedToken?.image
-                ? {
-                    src: selectedToken.image,
-                    width: 40,
-                    height: 40,
-                    excavate: true,
-                  }
-                : undefined
-            }
-          />
+          <QRCodeSVG id="receive-qr" value={qrValue} size={220} level="M" imageSettings={selectedToken?.image ? { src: selectedToken.image, width: 40, height: 40, excavate: true } : undefined} />
         </div>
-
         {selectedToken && (
           <div className="mt-4 flex items-center gap-2">
             <TokenIcon code={selectedToken.code} image={selectedToken.image} size={20} />
-            <span className="text-sm text-white font-medium">
-              {selectedToken.code}
-              {amount && ` — ${amount}`}
-            </span>
+            <span className="text-sm text-white font-medium">{selectedToken.code}{amount && ` — ${amount}`}</span>
           </div>
         )}
-
-        <button
-          onClick={downloadQR}
-          className="mt-4 flex items-center gap-2 text-sm text-stellar-muted hover:text-white transition-colors"
-        >
-          <Download size={16} />
-          Download QR Code
+        <button onClick={downloadQR} className="mt-4 flex items-center gap-2 text-sm text-stellar-muted hover:text-white transition-colors">
+          <Download size={16} />{t("receive.downloadQr")}
         </button>
       </div>
 
       {/* Address */}
       <div className="bg-stellar-card border border-stellar-border rounded-xl p-4">
-        <label className="block text-xs text-stellar-muted mb-2">Your Address</label>
+        <label className="block text-xs text-stellar-muted mb-2">{t("receive.yourAddress")}</label>
         <div className="flex items-center gap-2">
-          <code className="flex-1 text-sm text-white font-mono break-all">
-            {publicKey}
-          </code>
-          <button
-            onClick={() => copyToClipboard(publicKey, "address")}
-            className="shrink-0 p-2 rounded-lg hover:bg-white/5 transition-colors"
-          >
-            {copied === "address" ? (
-              <Check size={18} className="text-stellar-success" />
-            ) : (
-              <Copy size={18} className="text-stellar-muted" />
-            )}
+          <code className="flex-1 text-sm text-white font-mono break-all">{publicKey}</code>
+          <button onClick={() => copyToClipboard(publicKey, "address")} className="shrink-0 p-2 rounded-lg hover:bg-white/5 transition-colors">
+            {copied === "address" ? <Check size={18} className="text-stellar-success" /> : <Copy size={18} className="text-stellar-muted" />}
           </button>
         </div>
       </div>
@@ -368,20 +226,11 @@ export default function ReceivePage() {
       {/* SEP-7 URI */}
       {sep7Uri && sep7Uri !== publicKey && (
         <div className="bg-stellar-card border border-stellar-border rounded-xl p-4">
-          <label className="block text-xs text-stellar-muted mb-2">Payment URI</label>
+          <label className="block text-xs text-stellar-muted mb-2">{t("receive.paymentUri")}</label>
           <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs text-stellar-muted font-mono break-all">
-              {sep7Uri}
-            </code>
-            <button
-              onClick={() => copyToClipboard(sep7Uri, "uri")}
-              className="shrink-0 p-2 rounded-lg hover:bg-white/5 transition-colors"
-            >
-              {copied === "uri" ? (
-                <Check size={18} className="text-stellar-success" />
-              ) : (
-                <Copy size={18} className="text-stellar-muted" />
-              )}
+            <code className="flex-1 text-xs text-stellar-muted font-mono break-all">{sep7Uri}</code>
+            <button onClick={() => copyToClipboard(sep7Uri, "uri")} className="shrink-0 p-2 rounded-lg hover:bg-white/5 transition-colors">
+              {copied === "uri" ? <Check size={18} className="text-stellar-success" /> : <Copy size={18} className="text-stellar-muted" />}
             </button>
           </div>
         </div>

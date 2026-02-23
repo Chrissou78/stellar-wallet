@@ -1,22 +1,32 @@
 import { useTranslation } from "react-i18next";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   Coins,
   Send,
   QrCode,
   ArrowLeftRight,
-  Lock,
+  LogOut,
   Home,
   History as HistoryIcon,
   Settings as SettingsIcon,
 } from "lucide-react";
-import AccountSwitcher from "./AccountSwitcher";
 import { useAuthStore } from "../store/auth";
+import { useWalletStore } from "../store/wallet";
+import AccountSwitcher from "./AccountSwitcher";
 import clsx from "clsx";
 
 export default function Layout() {
   const { t } = useTranslation();
-  const lockApp = useAuthStore((s) => s.lock);
+  const logout = useAuthStore((s) => s.logout);
+  const walletLogout = useWalletStore((s) => s.logout);
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+
+  const handleLogout = async () => {
+    await logout();
+    walletLogout();
+    navigate("/login");
+  };
 
   const NAV = [
     { to: "/dashboard", label: t("nav.dashboard"), icon: Home },
@@ -34,6 +44,15 @@ export default function Layout() {
         <div className="p-3 border-b border-stellar-border">
           <AccountSwitcher />
         </div>
+
+        {user && (
+          <div className="px-4 py-3 border-b border-stellar-border">
+            <p className="text-sm text-white font-medium truncate">
+              {user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : user.email}
+            </p>
+            <p className="text-xs text-stellar-muted truncate">{user.email}</p>
+          </div>
+        )}
 
         <nav className="flex-1 px-3 py-3 space-y-1">
           {NAV.map(({ to, icon: Icon, label }) => (
@@ -57,11 +76,11 @@ export default function Layout() {
 
         <div className="p-3 border-t border-stellar-border">
           <button
-            onClick={lockApp}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-stellar-muted hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+            onClick={handleLogout}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:text-red-300 rounded-lg hover:bg-red-500/10 transition-colors"
           >
-            <Lock size={16} />
-            {t("settings.lock", "Lock Wallet")}
+            <LogOut size={16} />
+            {t("settings.logout", "Sign Out")}
           </button>
         </div>
       </aside>
