@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,19 +6,64 @@ import { useWalletStore } from "../src/shared/store/wallet";
 import { tokenApi } from "../src/shared/lib/api";
 import TokenIcon from "../src/components/TokenIcon";
 import {
-  ChevronLeft, Star, CheckCircle, ExternalLink, Globe, Shield,
+  ChevronLeft, Star, CheckCircle, Globe, Shield,
   ArrowUpRight, ArrowLeftRight, Copy, Check,
 } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 
+const API_BASE = "https://stellar-wallet.onrender.com";
+
 function formatNumber(n: number | string | null): string {
-  if (!n) return "–";
+  if (!n) return "—";
   const num = typeof n === "string" ? parseFloat(n) : n;
+  if (isNaN(num)) return "—";
+  if (num >= 1e15) return (num / 1e15).toFixed(2) + "Q";
+  if (num >= 1e12) return (num / 1e12).toFixed(2) + "T";
   if (num >= 1e9) return (num / 1e9).toFixed(2) + "B";
   if (num >= 1e6) return (num / 1e6).toFixed(2) + "M";
   if (num >= 1e3) return (num / 1e3).toFixed(1) + "K";
   return num.toFixed(2);
+}
+
+async function fetchFromProxy(code: string, issuer: string) {
+  if (code === "XLM" || issuer === "native") return null;
+  const res = await fetch(
+    `${API_BASE}/api/v1/tokens/expert/${encodeURIComponent(code)}/${encodeURIComponent(issuer)}`
+  );
+  if (!res.ok) return null;
+  const r = await res.json();
+
+  return {
+    assetCode: code,
+    assetIssuer: issuer,
+    assetType: code.length <= 4 ? "credit_alphanum4" : "credit_alphanum12",
+    tomlName: r.toml_info?.code || r.toml_info?.name || "",
+    tomlImage: r.toml_info?.image || "",
+    description: r.toml_info?.desc || "",
+    domain: r.home_domain || "",
+    isVerified: (r.rating?.average ?? 0) >= 6,
+    isFavorite: false,
+    totalSupply: r.supply ? String(r.supply) : null,
+    trustlineCount: r.trustlines?.total ?? null,
+    trustlinesFunded: r.trustlines?.funded ?? null,
+    tradesCount: r.trades ?? null,
+    paymentsCount: r.payments ?? null,
+    ratingAverage: r.rating?.average ?? null,
+    price: r.price ?? null,
+    orderbook: null,
+    liquidityPools: null,
+  };
+}
+
+async function fetchTokenDetail(code: string, issuer: string) {
+  try {
+    const result = await tokenApi.detail(code, issuer);
+    if (result && !result.error && result.assetCode) return result;
+  } catch {}
+  const expert = await fetchFromProxy(code, issuer);
+  if (expert) return expert;
+  throw new Error("Token not found");
 }
 
 export default function TokenDetailPage() {
@@ -33,7 +78,7 @@ export default function TokenDetailPage() {
 
   const { data: token, isLoading } = useQuery({
     queryKey: ["token-detail", code, issuer],
-    queryFn: () => tokenApi.detail(code!, issuer!),
+    queryFn: () => fetchTokenDetail(code!, issuer!),
     enabled: !!code && !!issuer,
   });
 
@@ -46,11 +91,13 @@ export default function TokenDetailPage() {
   };
 
   const toggleFavorite = async () => {
-    if (!publicKey || !code) return;
+    if (!publicKey || !token) return;
     try {
-      await tokenApi.toggleFavorite(publicKey, code, issuer || "native");
+      // Backend expects numeric token ID, not code/issuer
+      if (token.id) {
+        await tokenApi.toggleFavorite(publicKey, token.id);
+      }
       queryClient.invalidateQueries({ queryKey: ["token-detail", code, issuer] });
-      queryClient.invalidateQueries({ queryKey: ["balances"] });
     } catch (e: any) {
       Alert.alert(t("common.error", "Error"), e.message);
     }
@@ -64,7 +111,7 @@ export default function TokenDetailPage() {
     );
   }
 
-  if (!token || token.error) {
+  if (!token) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0a0e1a" }}>
         <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 52, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: "#111827" }}>
@@ -83,31 +130,18 @@ export default function TokenDetailPage() {
   return (
     <View style={{ flex: 1, backgroundColor: "#0a0e1a" }}>
       {/* Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingTop: 52,
-          paddingHorizontal: 16,
-          paddingBottom: 12,
-          backgroundColor: "#111827",
-          borderBottomWidth: 1,
-          borderBottomColor: "#1f2937",
-        }}
-      >
+      <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 52, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: "#111827", borderBottomWidth: 1, borderBottomColor: "#1f2937" }}>
         <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
           <ChevronLeft size={24} color="#6b7280" />
         </TouchableOpacity>
-        <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", flex: 1 }}>
-          {token.assetCode}
-        </Text>
-        <TouchableOpacity onPress={toggleFavorite} style={{ padding: 8 }}>
-          <Star
-            size={20}
-            color="#f59e0b"
-            fill={token.isFavorite ? "#f59e0b" : "transparent"}
-          />
-        </TouchableOpacity>
+        <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", flex: 1 }}>{token.assetCode}</Text>
+        {token.id ? (
+          <TouchableOpacity onPress={toggleFavorite} style={{ padding: 8 }}>
+            <Star size={20} color="#f59e0b" fill={token.isFavorite ? "#f59e0b" : "transparent"} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
@@ -115,9 +149,7 @@ export default function TokenDetailPage() {
         <View style={{ alignItems: "center", paddingVertical: 20, gap: 8 }}>
           <TokenIcon code={token.assetCode} image={token.tomlImage} size={64} />
           <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>{token.assetCode}</Text>
-          {token.tomlName && (
-            <Text style={{ color: "#6b7280", fontSize: 14 }}>{token.tomlName}</Text>
-          )}
+          {token.tomlName ? <Text style={{ color: "#6b7280", fontSize: 14 }}>{token.tomlName}</Text> : null}
           <View style={{ flexDirection: "row", gap: 8 }}>
             {token.isVerified && (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(16,185,129,0.15)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 }}>
@@ -125,16 +157,21 @@ export default function TokenDetailPage() {
                 <Text style={{ color: "#10b981", fontSize: 11, fontWeight: "500" }}>Verified</Text>
               </View>
             )}
-            {token.domain && (
+            {token.domain ? (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(59,130,246,0.15)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 }}>
                 <Globe size={12} color="#3b82f6" />
                 <Text style={{ color: "#3b82f6", fontSize: 11 }}>{token.domain}</Text>
               </View>
-            )}
+            ) : null}
           </View>
           {token.ratingAverage != null && Number(token.ratingAverage) > 0 && (
             <Text style={{ color: "#f59e0b", fontSize: 16, fontWeight: "600" }}>
-              ★ {Number(token.ratingAverage).toFixed(1)}
+              ★ {Number(token.ratingAverage).toFixed(1)}/10
+            </Text>
+          )}
+          {token.price != null && (
+            <Text style={{ color: "#9ca3af", fontSize: 14 }}>
+              ${Number(token.price).toFixed(4)}
             </Text>
           )}
         </View>
@@ -157,39 +194,37 @@ export default function TokenDetailPage() {
           </TouchableOpacity>
         </View>
 
+        {/* Stats Grid */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+          {[
+            { label: t("tokens.holders", "Holders"), value: formatNumber(token.trustlinesFunded), color: "#3b82f6" },
+            { label: t("tokens.trades", "Trades"), value: formatNumber(token.tradesCount), color: "#8b5cf6" },
+            { label: t("tokens.payments", "Payments"), value: formatNumber(token.paymentsCount), color: "#10b981" },
+            { label: t("tokens.totalSupply", "Supply"), value: formatNumber(token.totalSupply), color: "#f59e0b" },
+          ].map((stat) => (
+            <View key={stat.label} style={{ width: "47%", backgroundColor: "#111827", borderRadius: 12, borderWidth: 1, borderColor: "#1f2937", padding: 12 }}>
+              <Text style={{ color: "#6b7280", fontSize: 10, textTransform: "uppercase", marginBottom: 4 }}>{stat.label}</Text>
+              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>{stat.value}</Text>
+            </View>
+          ))}
+        </View>
+
         {/* Asset Details */}
         <View style={{ backgroundColor: "#111827", borderRadius: 14, borderWidth: 1, borderColor: "#1f2937", padding: 14, gap: 12 }}>
           <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "600", textTransform: "uppercase" }}>
             {t("tokens.details", "Asset Details")}
           </Text>
-
           {[
             { label: "Code", value: token.assetCode },
             { label: "Type", value: token.assetType },
-            { label: "Supply", value: formatNumber(token.totalSupply) },
-            { label: "Trustlines", value: formatNumber(token.trustlineCount) },
           ].map((row) => (
             <View key={row.label} style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text style={{ color: "#6b7280", fontSize: 13 }}>{row.label}</Text>
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "500" }}>{row.value || "–"}</Text>
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "500" }}>{row.value || "—"}</Text>
             </View>
           ))}
-
-          {/* Issuer */}
-          {token.assetIssuer && (
-            <TouchableOpacity
-              onPress={copyIssuer}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: "#0a0e1a",
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: "#1f2937",
-                padding: 10,
-                gap: 8,
-              }}
-            >
+          {token.assetIssuer && token.assetIssuer !== "native" && (
+            <TouchableOpacity onPress={copyIssuer} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#0a0e1a", borderRadius: 10, borderWidth: 1, borderColor: "#1f2937", padding: 10, gap: 8 }}>
               <Text style={{ flex: 1, color: "#6b7280", fontSize: 10, fontFamily: "monospace" }} numberOfLines={1}>
                 {token.assetIssuer}
               </Text>
@@ -201,17 +236,7 @@ export default function TokenDetailPage() {
         {/* Orderbook */}
         {token.orderbook && (
           <View style={{ backgroundColor: "#111827", borderRadius: 14, borderWidth: 1, borderColor: "#1f2937", padding: 14, gap: 10 }}>
-            <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "600", textTransform: "uppercase" }}>
-              Order Book
-            </Text>
-            {token.orderbook.spread != null && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ color: "#6b7280", fontSize: 13 }}>Spread</Text>
-                <Text style={{ color: "#fff", fontSize: 13, fontWeight: "500" }}>
-                  {parseFloat(token.orderbook.spread).toFixed(2)}%
-                </Text>
-              </View>
-            )}
+            <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "600", textTransform: "uppercase" }}>Order Book</Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: "#10b981", fontSize: 11, fontWeight: "600", marginBottom: 6 }}>Bids</Text>
@@ -235,34 +260,13 @@ export default function TokenDetailPage() {
           </View>
         )}
 
-        {/* Liquidity Pools */}
-        {token.liquidityPools && token.liquidityPools.length > 0 && (
-          <View style={{ backgroundColor: "#111827", borderRadius: 14, borderWidth: 1, borderColor: "#1f2937", padding: 14, gap: 10 }}>
-            <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "600", textTransform: "uppercase" }}>
-              Liquidity Pools ({token.liquidityPools.length})
-            </Text>
-            {token.liquidityPools.slice(0, 5).map((pool: any, i: number) => (
-              <View key={i} style={{ backgroundColor: "#0a0e1a", borderRadius: 10, padding: 10 }}>
-                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "500" }}>
-                  {pool.reserves?.map((r: any) => r.asset === "native" ? "XLM" : r.asset?.split(":")[0]).join(" / ")}
-                </Text>
-                <Text style={{ color: "#6b7280", fontSize: 10, marginTop: 2 }}>
-                  Shares: {formatNumber(pool.total_shares)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
         {/* Description */}
-        {token.description && (
+        {token.description ? (
           <View style={{ backgroundColor: "#111827", borderRadius: 14, borderWidth: 1, borderColor: "#1f2937", padding: 14 }}>
-            <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "600", textTransform: "uppercase", marginBottom: 8 }}>
-              Description
-            </Text>
+            <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "600", textTransform: "uppercase", marginBottom: 8 }}>Description</Text>
             <Text style={{ color: "#fff", fontSize: 13, lineHeight: 20 }}>{token.description}</Text>
           </View>
-        )}
+        ) : null}
       </ScrollView>
     </View>
   );

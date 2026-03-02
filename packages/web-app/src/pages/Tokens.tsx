@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { tokenApi } from "../lib/api";
 import TokenIcon from "../components/TokenIcon";
-import { Search, Star, Loader2, Globe, Heart, List } from "lucide-react";
+import { Search, Star, Loader2, Globe, List } from "lucide-react";
 
 function formatRating(val: any): string {
   if (val == null) return "—";
