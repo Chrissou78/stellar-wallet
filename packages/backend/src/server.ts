@@ -61,6 +61,47 @@ async function bootstrap() {
     return tokenService.getFeatured();
   });
 
+  // ═══════════════════════════════════════
+  // StellarExpert Proxy (avoids CORS)
+  // ═══════════════════════════════════════
+  app.get("/api/v1/tokens/expert/:code/:issuer", async (request, reply) => {
+    const { code, issuer } = request.params as { code: string; issuer: string };
+
+    if (issuer === "native") {
+      return reply.status(400).send({ error: "Use backend for native asset" });
+    }
+
+    try {
+      const res = await fetch(
+        `https://api.stellar.expert/explorer/public/asset/${code}-${issuer}`
+      );
+
+      if (!res.ok) {
+        return reply.status(res.status).send({ error: "Asset not found on StellarExpert" });
+      }
+
+      const data = await res.json();
+      return reply.send(data);
+    } catch (err: any) {
+      return reply.status(502).send({ error: err.message || "Failed to fetch from StellarExpert" });
+    }
+  });
+
+    // StellarExpert directory proxy
+  app.get("/api/v1/tokens/directory", async (request, reply) => {
+    const { limit, order } = request.query as { limit?: string; order?: string };
+    try {
+      const res = await fetch(
+        `https://api.stellar.expert/explorer/public/asset?order=${order || "desc"}&limit=${limit || "200"}`
+      );
+      if (!res.ok) return reply.status(res.status).send({ error: "Failed to fetch directory" });
+      const data = await res.json();
+      return reply.send(data);
+    } catch (err: any) {
+      return reply.status(502).send({ error: err.message });
+    }
+  });
+
   // Single token detail
   app.get("/api/v1/tokens/:code/:issuer", async (request) => {
     const { code, issuer } = request.params as any;
