@@ -124,7 +124,11 @@ export default function LoginScreen() {
             <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>{t("auth.login")}</Text>
           )}
         </TouchableOpacity>
-
+        <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+          <Text style={{ color: "#818cf8", fontSize: 14, textAlign: "center", marginBottom: 12 }}>
+            {t("auth.forgotPassword")}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push("/register")}>
           <Text style={{ color: "#818cf8", fontSize: 14, textAlign: "center" }}>
             {t("auth.noAccount")} <Text style={{ fontWeight: "600" }}>{t("auth.register")}</Text>

@@ -1,7 +1,7 @@
 import {
   pgTable,
   bigserial,
-  text,
+  text, 
   numeric,
   integer,
   smallint,
@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   index,
   bigint,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -239,6 +240,17 @@ export const refreshTokens = pgTable(
     index("idx_refresh_tokens_token").on(table.token),
   ]
 );
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: bigint("user_id", { mode: "number" })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // ════════════════════════════════════════════
 // ALL Relations (must come after ALL tables)

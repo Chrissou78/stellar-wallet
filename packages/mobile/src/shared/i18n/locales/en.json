@@ -160,7 +160,13 @@
     "updatedFavorites": "Updated favorites",
     "totalTrustlines": "{{count}} total trustlines",
     "stellarExpert": "StellarExpert",
-    "website": "Website"
+    "website": "Website",
+    "held": "held",
+    "available": "available",
+    "myTokens": "My Tokens",
+    "favorites": "Favorites",
+    "explore": "Explore",
+    "noFavorites": "No favorite tokens yet"
   },
   "send": {
     "title": "Send Payment",

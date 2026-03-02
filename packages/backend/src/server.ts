@@ -9,6 +9,7 @@ import { runTokenIndexer } from "./jobs/token-indexer";
 import { syncTomlImages } from "./lib/toml-sync.js";
 import { authRoutes } from "./routes/auth";
 import { walletRoutes } from "./routes/wallets";
+import { passwordResetRoutes } from "./routes/password-reset";
 
 
 const app = Fastify({ logger: true });
@@ -28,6 +29,7 @@ async function bootstrap() {
 
   app.register(authRoutes);
   app.register(walletRoutes);
+  app.register(passwordResetRoutes);
 
   // ═══════════════════════════════════════
   // Health

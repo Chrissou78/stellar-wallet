@@ -29,6 +29,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="history" />
         <Stack.Screen name="token-detail" />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
       </Stack>
     </QueryClientProvider>
   );
