@@ -11,7 +11,8 @@ import {
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useWalletStore } from "../shared/store/wallet";
-import { ChevronDown, Plus, Download, Trash2, Pencil, Check, X, User } from "lucide-react-native";
+import * as Clipboard from "expo-clipboard";
+import { ChevronDown, Plus, Download, Trash2, Pencil, Check, X, User, Copy } from "lucide-react-native";
 
 export default function AccountSwitcher() {
   const { t } = useTranslation();
@@ -25,6 +26,7 @@ export default function AccountSwitcher() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const active = accounts.find((a) => a.id === activeAccountId);
 
@@ -61,6 +63,12 @@ export default function AccountSwitcher() {
         },
       ]
     );
+  };
+
+  const copyAddress = async (account: any) => {
+    await Clipboard.setStringAsync(account.publicKey);
+    setCopiedId(account.id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
@@ -173,6 +181,14 @@ export default function AccountSwitcher() {
                             {account.publicKey.slice(0, 8)}...{account.publicKey.slice(-6)}
                           </Text>
                         </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity onPress={() => copyAddress(account)} style={{ padding: 6 }}>
+                        {copiedId === account.id ? (
+                          <Check size={13} color="#10b981" />
+                        ) : (
+                          <Copy size={13} color="#6b7280" />
+                        )}
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => startRename(account)} style={{ padding: 6 }}>
                         <Pencil size={13} color="#6b7280" />

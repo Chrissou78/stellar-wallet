@@ -11,6 +11,7 @@ import {
   Check,
   X,
   User,
+  Copy,
 } from "lucide-react";
 
 export default function AccountSwitcher() {
@@ -25,6 +26,7 @@ export default function AccountSwitcher() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const active = accounts.find((a) => a.id === activeAccountId);
 
@@ -53,9 +55,15 @@ export default function AccountSwitcher() {
     }
   };
 
+  const copyAddress = (e: React.MouseEvent, account: WalletAccount) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(account.publicKey);
+    setCopiedId(account.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   return (
     <div className="relative">
-      {/* Trigger */}
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-left"
@@ -79,14 +87,11 @@ export default function AccountSwitcher() {
         />
       </button>
 
-      {/* Dropdown */}
       {open && (
         <>
-          {/* Backdrop */}
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
 
           <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-stellar-card border border-stellar-border rounded-xl shadow-2xl overflow-hidden">
-            {/* Account list */}
             <div className="max-h-64 overflow-y-auto">
               {accounts.map((account) => (
                 <div
@@ -95,7 +100,6 @@ export default function AccountSwitcher() {
                     account.id === activeAccountId ? "bg-stellar-blue/10" : ""
                   }`}
                 >
-                  {/* Editing mode */}
                   {editingId === account.id ? (
                     <div className="flex items-center gap-2">
                       <input
@@ -117,7 +121,6 @@ export default function AccountSwitcher() {
                       </button>
                     </div>
                   ) : confirmDeleteId === account.id ? (
-                    /* Delete confirmation */
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-stellar-danger">Delete this wallet?</p>
                       <div className="flex gap-1">
@@ -136,7 +139,6 @@ export default function AccountSwitcher() {
                       </div>
                     </div>
                   ) : (
-                    /* Normal display */
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleSwitch(account.id)}
@@ -159,8 +161,18 @@ export default function AccountSwitcher() {
                         </div>
                       </button>
 
-                      {/* Actions */}
                       <div className="flex gap-0.5 shrink-0">
+                        <button
+                          onClick={(e) => copyAddress(e, account)}
+                          className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                          title="Copy address"
+                        >
+                          {copiedId === account.id ? (
+                            <Check size={12} className="text-stellar-success" />
+                          ) : (
+                            <Copy size={12} className="text-stellar-muted" />
+                          )}
+                        </button>
                         <button
                           onClick={() => startRename(account)}
                           className="p-1.5 rounded hover:bg-white/10 transition-colors"
@@ -182,28 +194,27 @@ export default function AccountSwitcher() {
               ))}
             </div>
 
-            {/* Add wallet buttons */}
             <div className="border-t border-stellar-border p-2 space-y-1">
-            <button
+              <button
                 onClick={() => {
-                setOpen(false);
-                navigate("/onboarding?action=create");
+                  setOpen(false);
+                  navigate("/onboarding?action=create");
                 }}
                 className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-stellar-muted hover:text-white hover:bg-white/5 transition-colors"
-            >
+              >
                 <Plus size={14} />
                 Create New Wallet
-            </button>
-            <button
+              </button>
+              <button
                 onClick={() => {
-                setOpen(false);
-                navigate("/onboarding?action=import");
+                  setOpen(false);
+                  navigate("/onboarding?action=import");
                 }}
                 className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-stellar-muted hover:text-white hover:bg-white/5 transition-colors"
-            >
+              >
                 <Download size={14} />
                 Import Wallet
-            </button>
+              </button>
             </div>
           </div>
         </>
