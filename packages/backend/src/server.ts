@@ -19,14 +19,23 @@ const stellar = new StellarSdk.Horizon.Server(config.HORIZON_URL);
 
 async function bootstrap() {
   // CORS
+  
   await app.register(cors, {
-    origin: [
-      "http://localhost:5173",
-      "https://ammawallet.com",
-      "https://www.ammawallet.com",
-      "chrome-extension://*",
-      config.WEB_APP_URL,
-    ].filter(Boolean),
+    origin: (origin, cb) => {
+      const allowed = [
+        "http://localhost:5173",
+        "https://ammawallet.com",
+        "https://www.ammawallet.com",
+        config.WEB_APP_URL,
+      ].filter(Boolean);
+
+      // Allow chrome extensions
+      if (!origin || allowed.includes(origin) || origin.startsWith("chrome-extension://")) {
+        cb(null, true);
+      } else {
+        cb(null, false);
+      }
+    },
   });
 
   app.register(authRoutes);
