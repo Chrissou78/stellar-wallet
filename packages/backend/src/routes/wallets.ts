@@ -50,6 +50,22 @@ export async function walletRoutes(app: FastifyInstance) {
       return reply.status(409).send({ error: "Wallet already exists" });
     }
 
+    // Check for duplicate name
+    const duplicateName = await db
+      .select({ id: schema.userWallets.id })
+      .from(schema.userWallets)
+      .where(
+        and(
+          eq(schema.userWallets.userId, userId),
+          eq(schema.userWallets.name, name)
+        )
+      )
+      .limit(1);
+
+    if (duplicateName.length > 0) {
+      return reply.status(409).send({ error: "A wallet with this name already exists" });
+    }
+
     // Deactivate other wallets
     await db
       .update(schema.userWallets)
