@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE = "https://stellar-wallet.onrender.com";
+const API_BASE = "https://ammawallet.com";
 
 export interface UserProfile {
   id: number;

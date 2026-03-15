@@ -1,5 +1,5 @@
 const API_BASE =
-  import.meta.env.VITE_API_URL || "https://stellar-wallet.onrender.com";
+  import.meta.env.VITE_API_URL || "https://ammawallet.com";
 
 // ─── Token storage ─────────────────────────────────────────
 const ACCESS_KEY = "stellar_ext_access_token";

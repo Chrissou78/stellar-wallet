@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Mail, CheckCircle } from "lucide-react-native";
 
-const API_BASE = "https://stellar-wallet.onrender.com";
+const API_BASE = "https://ammawallet.com";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();

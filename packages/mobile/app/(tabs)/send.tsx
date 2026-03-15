@@ -85,7 +85,7 @@ export default function SendPage() {
       const accountData = await buildRes.json();
 
       // Use stellar-base would be ideal but we route through backend
-      const res = await fetch("https://stellar-wallet.onrender.com/api/v1/transactions/build-payment", {
+      const res = await fetch("https://ammawallet.com/api/v1/transactions/build-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,7 +107,7 @@ export default function SendPage() {
       const { xdr: unsignedXdr } = await res.json();
 
       // Sign via backend
-      const signRes = await fetch("https://stellar-wallet.onrender.com/api/v1/transactions/sign", {
+      const signRes = await fetch("https://ammawallet.com/api/v1/transactions/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ xdr: unsignedXdr, secret, network }),

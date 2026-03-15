@@ -10,7 +10,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-const API_BASE = "https://stellar-wallet.onrender.com";
+const API_BASE = "https://ammawallet.com";
 
 async function fetchFromProxy(code: string, issuer: string) {
   if (code === "XLM" || issuer === "native") return null;

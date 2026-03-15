@@ -12,7 +12,7 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 
-const API_BASE = "https://stellar-wallet.onrender.com";
+const API_BASE = "https://ammawallet.com";
 
 function formatNumber(n: number | string | null): string {
   if (!n) return "—";

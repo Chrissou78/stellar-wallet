@@ -116,7 +116,7 @@ export default function SwapPage() {
       });
 
       // Sign via backend
-      const signRes = await fetch("https://stellar-wallet.onrender.com/api/v1/transactions/sign", {
+      const signRes = await fetch("https://ammawallet.com/api/v1/transactions/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ xdr: buildRes.xdr, secret, network }),

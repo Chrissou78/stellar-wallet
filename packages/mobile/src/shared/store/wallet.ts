@@ -35,14 +35,14 @@ function generateId() {
 
 // Generate keypair via backend to avoid importing stellar-base
 async function generateKeypair(): Promise<{ publicKey: string; secretKey: string }> {
-  const res = await fetch("https://stellar-wallet.onrender.com/api/v1/keypair/generate");
+  const res = await fetch("https://ammawallet.com/api/v1/keypair/generate");
   if (!res.ok) throw new Error("Failed to generate keypair");
   return res.json();
 }
 
 // Validate and derive public key from secret via backend
 async function publicKeyFromSecret(secret: string): Promise<string> {
-  const res = await fetch("https://stellar-wallet.onrender.com/api/v1/keypair/from-secret", {
+  const res = await fetch("https://ammawallet.com/api/v1/keypair/from-secret", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ secret }),

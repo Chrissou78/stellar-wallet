@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, Star, ChevronRight } from "lucide-react-native";
 import { useWalletStore } from "../../src/shared/store/wallet";
 
-const API_BASE = "https://stellar-wallet.onrender.com";
+const API_BASE = "https://ammawallet.com";
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
 
 interface TokenItem {

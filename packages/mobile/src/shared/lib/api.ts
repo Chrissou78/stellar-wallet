@@ -1,6 +1,6 @@
 import { useAuthStore } from "../store/auth";
 
-const API_BASE = "https://stellar-wallet.onrender.com";
+const API_BASE = "https://ammawallet.com";
 
 async function request(path: string, options: RequestInit = {}) {
   const { accessToken, refreshSession } = useAuthStore.getState();

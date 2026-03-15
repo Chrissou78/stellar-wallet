@@ -6,7 +6,7 @@ import TokenIcon from "../../shared/components/TokenIcon";
 import { Search, Loader2, Star, Globe, List } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const API_BASE = "https://stellar-wallet.onrender.com";
+const API_BASE = "https://ammawallet.com";
 
 async function fetchDirectory(): Promise<any[]> {
   const res = await fetch(`${API_BASE}/api/v1/tokens/directory?order=desc&limit=200`);
