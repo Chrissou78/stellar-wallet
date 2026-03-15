@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { useAuthStore } from "./auth";
 
 const API_BASE = "https://ammawallet.com";
 
@@ -36,6 +37,29 @@ interface WalletState {
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function getToken(): string | null {
+  return useAuthStore.getState().accessToken;
+}
+
+async function serverRequest(path: string, options: RequestInit = {}) {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...(options.headers as Record<string, string>),
+      },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 async function generateKeypair(): Promise<{ publicKey: string; secretKey: string }> {
@@ -94,7 +118,6 @@ export const useWalletStore = create<WalletState>()(
 
           for (const sw of serverWallets) {
             if (!seenPubkeys.has(sw.publicKey)) {
-              // Store encrypted secret in SecureStore if available
               if (sw.encryptedSecret) {
                 const storeKey = `secret_${sw.publicKey}`;
                 await SecureStore.setItemAsync(storeKey, sw.encryptedSecret);
@@ -140,6 +163,21 @@ export const useWalletStore = create<WalletState>()(
         const storeKey = `secret_${publicKey}`;
         await SecureStore.setItemAsync(storeKey, secretKey);
 
+        // Sync to server FIRST
+        let serverId: number | undefined;
+        try {
+          const serverWallet = await serverRequest("/api/v1/wallets", {
+            method: "POST",
+            body: JSON.stringify({
+              name: trimmedName,
+              publicKey,
+              encryptedSecret: secretKey,
+              network: get().network,
+            }),
+          });
+          serverId = serverWallet?.id;
+        } catch {}
+
         if (get().network === "testnet") {
           try {
             await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`);
@@ -148,6 +186,7 @@ export const useWalletStore = create<WalletState>()(
 
         const account: WalletAccount = {
           id: generateId(),
+          serverId,
           name: trimmedName,
           publicKey,
           encryptedSecret: storeKey,
@@ -177,8 +216,24 @@ export const useWalletStore = create<WalletState>()(
         const storeKey = `secret_${publicKey}`;
         await SecureStore.setItemAsync(storeKey, secretKey);
 
+        // Sync to server FIRST
+        let serverId: number | undefined;
+        try {
+          const serverWallet = await serverRequest("/api/v1/wallets", {
+            method: "POST",
+            body: JSON.stringify({
+              name: trimmedName,
+              publicKey,
+              encryptedSecret: secretKey,
+              network: get().network,
+            }),
+          });
+          serverId = serverWallet?.id;
+        } catch {}
+
         const account: WalletAccount = {
           id: generateId(),
+          serverId,
           name: trimmedName,
           publicKey,
           encryptedSecret: storeKey,
@@ -194,9 +249,24 @@ export const useWalletStore = create<WalletState>()(
         return publicKey;
       },
 
-      switchAccount: (id) => set({ activeAccountId: id, isUnlocked: false, _secretKey: null }),
+      switchAccount: (id) => {
+        const account = get().accounts.find((a) => a.id === id);
+        if (account?.serverId) {
+          serverRequest(`/api/v1/wallets/${account.serverId}/activate`, {
+            method: "PATCH",
+            body: JSON.stringify({}),
+          }).catch(console.error);
+        }
+        set({ activeAccountId: id, isUnlocked: false, _secretKey: null });
+      },
 
-      removeAccount: (id) =>
+      removeAccount: (id) => {
+        const account = get().accounts.find((a) => a.id === id);
+        if (account?.serverId) {
+          serverRequest(`/api/v1/wallets/${account.serverId}`, {
+            method: "DELETE",
+          }).catch(console.error);
+        }
         set((s) => {
           const accounts = s.accounts.filter((a) => a.id !== id);
           return {
@@ -205,12 +275,21 @@ export const useWalletStore = create<WalletState>()(
             isUnlocked: false,
             _secretKey: null,
           };
-        }),
+        });
+      },
 
-      renameAccount: (id, name) =>
+      renameAccount: (id, name) => {
+        const account = get().accounts.find((a) => a.id === id);
+        if (account?.serverId) {
+          serverRequest(`/api/v1/wallets/${account.serverId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ name }),
+          }).catch(console.error);
+        }
         set((s) => ({
           accounts: s.accounts.map((a) => (a.id === id ? { ...a, name } : a)),
-        })),
+        }));
+      },
 
       unlock: async (_pin: string) => {
         const active = get().accounts.find((a) => a.id === get().activeAccountId);
