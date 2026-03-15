@@ -122,11 +122,9 @@ export const userWalletApi = {
       body: JSON.stringify(data),
     }),
 
-  activate: (id: number) =>
-    request<any>(`/api/v1/wallets/${id}/activate`, { method: "PATCH", body: JSON.stringify({}) }),
-
-  remove: (id: number) =>
-    request<any>(`/api/v1/wallets/${id}`, { method: "DELETE" }),
+  activate: (id: number) => request<any>(`/api/v1/wallets/${id}/activate`, { method: "PATCH", body: JSON.stringify({}) }),
+  rename: (id: number, name: string) => request<any>(`/api/v1/wallets/${id}`, {method: "PATCH", body: JSON.stringify({ name }),}),
+  remove: (id: number) => request<any>(`/api/v1/wallets/${id}`, { method: "DELETE" }),
 };
 
 // ——— Tokens ———
