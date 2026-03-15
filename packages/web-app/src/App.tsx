@@ -5,6 +5,7 @@ import { useWalletStore } from "./store/wallet";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
+import ForgotPasswordPage from "./pages/ForgotPassword";
 import OnboardingPage from "./pages/Onboarding";
 import DashboardPage from "./pages/Dashboard";
 import TokensPage from "./pages/Tokens";
@@ -35,7 +36,6 @@ export default function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const loadProfile = useAuthStore((s) => s.loadProfile);
 
-  // On mount, try to restore session from stored JWT
   useEffect(() => {
     loadProfile();
   }, []);
@@ -45,6 +45,7 @@ export default function App() {
       {/* Public auth routes */}
       <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
       <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
+      <Route path="/forgot-password" element={<AuthRoute><ForgotPasswordPage /></AuthRoute>} />
 
       {/* Onboarding — requires auth but no wallet yet */}
       <Route

@@ -73,7 +73,15 @@
     "passwordsMismatch": "Passwords do not match",
     "loginFailed": "Login failed",
     "registerFailed": "Registration failed",
-    "registerSubtitle": "Join Stellar Wallet"
+    "registerSubtitle": "Join Stellar Wallet",
+    "forgotPassword": "Forgot password",
+    "forgotPasswordDesc": "Enter your email and we'll send you a link to reset your password.",
+    "sendResetLink": "Send Reset Link",
+    "sending": "Sending...",
+    "resetEmailSent": "Check your email",
+    "resetEmailSentDesc": "If an account exists with that email, we've sent a password reset link. Check your inbox and spam folder.",
+    "resetRequestFailed": "Failed to send reset email. Please try again.",
+    "backToLogin": "Back to login"
   },
   "onboarding": {
     "title": "Stellar Wallet",
