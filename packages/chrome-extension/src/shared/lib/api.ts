@@ -172,3 +172,25 @@ export const txApi = {
       `/api/v1/transactions/${publicKey}?limit=${limit}${cursor ? `&cursor=${cursor}` : ""}`
     ),
 };
+
+export const userWalletApi = {
+  list: () => request<any[]>("/api/v1/wallets"),
+
+  add: (data: { name: string; publicKey: string; encryptedSecret?: string; network?: string }) =>
+    request<any>("/api/v1/wallets", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  activate: (id: number) =>
+    request<any>(`/api/v1/wallets/${id}/activate`, { method: "PATCH" }),
+
+  rename: (id: number, name: string) =>
+    request<any>(`/api/v1/wallets/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+
+  remove: (id: number) =>
+    request<any>(`/api/v1/wallets/${id}`, { method: "DELETE" }),
+};

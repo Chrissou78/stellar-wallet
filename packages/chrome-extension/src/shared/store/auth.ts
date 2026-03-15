@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { authApi, setTokens, clearTokens, getAccessToken } from "../lib/api";
+import { useWalletStore } from "./wallet";
 
 interface User {
   id: number;
@@ -50,15 +51,15 @@ export const useAuthStore = create<AuthState>()(
         const res = await authApi.login(email, password);
         setTokens(res.accessToken, res.refreshToken);
         set({ user: res.user, isAuthenticated: true });
+        await useWalletStore.getState().syncFromServer();
       },
 
       logout: async () => {
         try {
           await authApi.logout();
-        } catch {
-          // ignore
-        }
+        } catch {}
         clearTokens();
+        useWalletStore.getState().logout();
         set({ user: null, isAuthenticated: false });
       },
 
@@ -71,6 +72,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const res = await authApi.me();
           set({ user: res.user, isAuthenticated: true });
+          await useWalletStore.getState().syncFromServer();
         } catch {
           clearTokens();
           set({ user: null, isAuthenticated: false });
