@@ -2,9 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { generateKeypair, keypairFromSecret, fundTestnet } from "../lib/stellar";
 import { encryptSecret, decryptSecret } from "../lib/crypto";
+import { userWalletApi } from "../lib/api";
 
 export interface WalletAccount {
   id: string;
+  serverId?: number;
   name: string;
   publicKey: string;
   encryptedSecret: string;
@@ -17,8 +19,8 @@ interface WalletState {
   network: "testnet" | "public";
   isUnlocked: boolean;
   _secretKey: string | null;
+  _syncing: boolean;
 
-  // Methods
   getPublicKey: () => string | null;
   activeAccount: () => WalletAccount | null;
   createWallet: (name: string, pin: string) => Promise<string>;
@@ -31,6 +33,7 @@ interface WalletState {
   logout: () => void;
   getSecretKey: () => string;
   setNetwork: (n: "testnet" | "public") => void;
+  syncFromServer: () => Promise<void>;
 }
 
 function generateId(): string {
@@ -45,8 +48,8 @@ export const useWalletStore = create<WalletState>()(
       network: "testnet",
       isUnlocked: false,
       _secretKey: null,
+      _syncing: false,
 
-      // ─── Derived (as functions, not getters) ────────
       getPublicKey: () => {
         const state = get();
         const active = state.accounts.find((a) => a.id === state.activeAccountId);
@@ -58,7 +61,74 @@ export const useWalletStore = create<WalletState>()(
         return state.accounts.find((a) => a.id === state.activeAccountId) ?? null;
       },
 
-      // ─── Create ─────────────────────────────────────
+      // ─── Sync from server ─────────────────────
+      syncFromServer: async () => {
+        if (get()._syncing) return;
+        set({ _syncing: true });
+        try {
+          const serverWallets = await userWalletApi.list();
+          if (!serverWallets || serverWallets.length === 0) {
+            set({ _syncing: false });
+            return;
+          }
+
+          const localAccounts = get().accounts;
+          const merged: WalletAccount[] = [];
+          const seenPubkeys = new Set<string>();
+
+          // Keep local accounts, update with server IDs
+          for (const local of localAccounts) {
+            const serverMatch = serverWallets.find(
+              (sw: any) => sw.publicKey === local.publicKey
+            );
+            merged.push({
+              ...local,
+              serverId: serverMatch?.id ?? local.serverId,
+              encryptedSecret: local.encryptedSecret || serverMatch?.encryptedSecret || "",
+            });
+            seenPubkeys.add(local.publicKey);
+          }
+
+          // Add server wallets not present locally
+          for (const sw of serverWallets) {
+            if (!seenPubkeys.has(sw.publicKey)) {
+              merged.push({
+                id: generateId(),
+                serverId: sw.id,
+                name: sw.name,
+                publicKey: sw.publicKey,
+                encryptedSecret: sw.encryptedSecret || "",
+                createdAt: new Date(sw.createdAt).getTime(),
+              });
+            }
+          }
+
+          // Determine active account
+          const activeServer = serverWallets.find((sw: any) => sw.isActive);
+          const currentActiveId = get().activeAccountId;
+          let newActiveId = currentActiveId;
+
+          if (!currentActiveId || !merged.find((m) => m.id === currentActiveId)) {
+            if (activeServer) {
+              const match = merged.find((m) => m.publicKey === activeServer.publicKey);
+              newActiveId = match?.id ?? merged[0]?.id ?? null;
+            } else {
+              newActiveId = merged[0]?.id ?? null;
+            }
+          }
+
+          set({
+            accounts: merged,
+            activeAccountId: newActiveId,
+            _syncing: false,
+          });
+        } catch (err) {
+          console.error("Wallet sync failed:", err);
+          set({ _syncing: false });
+        }
+      },
+
+      // ─── Create ───────────────────────────────
       createWallet: async (name, pin) => {
         const { publicKey, secretKey } = generateKeypair();
         const encrypted = await encryptSecret(secretKey, pin);
@@ -71,10 +141,22 @@ export const useWalletStore = create<WalletState>()(
           createdAt: Date.now(),
         };
 
+        // Fund on testnet
         try {
           await fundTestnet(publicKey);
-        } catch {
-          // Friendbot may fail
+        } catch {}
+
+        // Sync to server
+        try {
+          const serverWallet = await userWalletApi.add({
+            name: account.name,
+            publicKey,
+            encryptedSecret: encrypted,
+            network: get().network,
+          });
+          account.serverId = serverWallet.id;
+        } catch (err) {
+          console.error("Failed to sync wallet to server:", err);
         }
 
         set((state) => ({
@@ -87,7 +169,7 @@ export const useWalletStore = create<WalletState>()(
         return publicKey;
       },
 
-      // ─── Import ─────────────────────────────────────
+      // ─── Import ───────────────────────────────
       importWallet: async (name, secretKey, pin) => {
         const { publicKey } = keypairFromSecret(secretKey);
 
@@ -105,6 +187,19 @@ export const useWalletStore = create<WalletState>()(
           createdAt: Date.now(),
         };
 
+        // Sync to server
+        try {
+          const serverWallet = await userWalletApi.add({
+            name: account.name,
+            publicKey,
+            encryptedSecret: encrypted,
+            network: get().network,
+          });
+          account.serverId = serverWallet.id;
+        } catch (err) {
+          console.error("Failed to sync wallet to server:", err);
+        }
+
         set((state) => ({
           accounts: [...state.accounts, account],
           activeAccountId: account.id,
@@ -115,10 +210,16 @@ export const useWalletStore = create<WalletState>()(
         return publicKey;
       },
 
-      // ─── Switch ─────────────────────────────────────
+      // ─── Switch ───────────────────────────────
       switchAccount: (accountId) => {
         const account = get().accounts.find((a) => a.id === accountId);
         if (!account) throw new Error("Account not found");
+
+        // Sync active status to server
+        if (account.serverId) {
+          userWalletApi.activate(account.serverId).catch(console.error);
+        }
+
         set({
           activeAccountId: accountId,
           isUnlocked: false,
@@ -126,9 +227,16 @@ export const useWalletStore = create<WalletState>()(
         });
       },
 
-      // ─── Remove ─────────────────────────────────────
+      // ─── Remove ───────────────────────────────
       removeAccount: (accountId) => {
         const { accounts, activeAccountId } = get();
+        const account = accounts.find((a) => a.id === accountId);
+
+        // Delete from server
+        if (account?.serverId) {
+          userWalletApi.remove(account.serverId).catch(console.error);
+        }
+
         const remaining = accounts.filter((a) => a.id !== accountId);
         let newActiveId = activeAccountId;
         if (activeAccountId === accountId) {
@@ -142,8 +250,15 @@ export const useWalletStore = create<WalletState>()(
         });
       },
 
-      // ─── Rename ─────────────────────────────────────
+      // ─── Rename ───────────────────────────────
       renameAccount: (accountId, newName) => {
+        const account = get().accounts.find((a) => a.id === accountId);
+
+        // Sync rename to server
+        if (account?.serverId) {
+          userWalletApi.rename(account.serverId, newName).catch(console.error);
+        }
+
         set((state) => ({
           accounts: state.accounts.map((a) =>
             a.id === accountId ? { ...a, name: newName } : a
@@ -151,7 +266,7 @@ export const useWalletStore = create<WalletState>()(
         }));
       },
 
-      // ─── Auth ───────────────────────────────────────
+      // ─── Auth ─────────────────────────────────
       unlock: async (pin) => {
         const account = get().activeAccount();
         if (!account) throw new Error("No active account");

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { authApi, setTokens, clearTokens, getAccessToken, userWalletApi } from "../lib/api";
+import { useWalletStore } from "./wallet";
 
 export interface User {
   id: number;
@@ -21,15 +22,11 @@ export interface ServerWallet {
 }
 
 interface AuthState {
-  // User state
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-
-  // Server wallets
   serverWallets: ServerWallet[];
 
-  // Actions
   register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -37,7 +34,6 @@ interface AuthState {
   updateProfile: (data: { firstName?: string; lastName?: string; preferredLanguage?: string; preferredNetwork?: string }) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 
-  // Server wallet actions
   loadWallets: () => Promise<void>;
   addWallet: (data: { name: string; publicKey: string; encryptedSecret?: string; network?: string }) => Promise<void>;
   activateWallet: (id: number) => Promise<void>;
@@ -79,8 +75,9 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
           });
-          // Load wallets after login
+          // Load server wallets then sync to local wallet store
           await get().loadWallets();
+          await useWalletStore.getState().syncFromServer();
         } catch (err) {
           set({ isLoading: false });
           throw err;
@@ -90,10 +87,9 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         try {
           await authApi.logout();
-        } catch {
-          // ignore — clear local state regardless
-        }
+        } catch {}
         clearTokens();
+        useWalletStore.getState().logout();
         set({
           user: null,
           isAuthenticated: false,
@@ -106,8 +102,9 @@ export const useAuthStore = create<AuthState>()(
         try {
           const res = await authApi.me();
           set({ user: res.user, isAuthenticated: true, serverWallets: res.wallets || [] });
+          // Sync wallets from server on session restore
+          await useWalletStore.getState().syncFromServer();
         } catch {
-          // Token expired and refresh failed
           clearTokens();
           set({ user: null, isAuthenticated: false, serverWallets: [] });
         }
@@ -126,9 +123,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const wallets = await userWalletApi.list();
           set({ serverWallets: wallets });
-        } catch {
-          // ignore
-        }
+        } catch {}
       },
 
       addWallet: async (data) => {
