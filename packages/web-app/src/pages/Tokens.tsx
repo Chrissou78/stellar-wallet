@@ -15,7 +15,7 @@ function formatRating(val: any): string {
 function normalizeToken(t: any) {
   return {
     assetCode: t.assetCode ?? t.asset_code ?? "",
-    assetIssuer: t.assetIssuer ?? t.asset_issuer ?? "native",
+    assetIssuer: t.assetIssuer ?? t.asset_issuer ?? "",
     assetType: t.assetType ?? t.asset_type ?? "",
     tomlName: t.tomlName ?? t.toml_name ?? "",
     tomlImage: t.tomlImage ?? t.toml_image ?? "",
@@ -38,13 +38,13 @@ function unwrap(raw: any): any[] {
 // Fetch directory from StellarExpert (top 200 by rating)
 async function fetchStellarExpertDirectory(): Promise<any[]> {
   const API_BASE =
-    import.meta.env.VITE_API_URL || "http://localhost:3001";
+    import.meta.env.VITE_API_URL || "";
   const res = await fetch(`${API_BASE}/api/v1/tokens/directory?order=desc&limit=200`);
   if (!res.ok) return [];
   const data = await res.json();
   const records = data._embedded?.records || [];
 
-  return records.map((r: any) => {
+  return records.filter((r: any) => r.asset !=="XLM").map((r: any) => {
     const raw = r.asset || "";
     const firstDash = raw.indexOf("-");
     const lastDash = raw.lastIndexOf("-");
@@ -55,12 +55,12 @@ async function fetchStellarExpertDirectory(): Promise<any[]> {
         ? raw.substring(firstDash + 1, lastDash)
         : firstDash > 0
         ? raw.substring(firstDash + 1)
-        : "native";
+        : "";
 
     return {
       assetCode: code,
       assetIssuer: issuer,
-      assetType: issuer === "native" ? "native" : "credit_alphanum4",
+      assetType: issuer === "" ? "native" : "credit_alphanum4",
       tomlName: r.tomlInfo?.name || r.tomlInfo?.orgName || "",
       tomlImage: r.tomlInfo?.image || "",
       domain: r.domain || "",

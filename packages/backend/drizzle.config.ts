@@ -10,8 +10,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    // Use DIRECT (unpooled) connection for migrations
-    // PgBouncer doesn't support DDL/migration statements well
     url: process.env.DATABASE_URL_DIRECT,
   },
 });

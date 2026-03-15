@@ -22,6 +22,8 @@ async function bootstrap() {
   await app.register(cors, {
     origin: [
       "http://localhost:5173",
+      "https://ammawallet.com",
+      "https://www.ammawallet.com",
       "chrome-extension://*",
       config.WEB_APP_URL,
     ].filter(Boolean),
