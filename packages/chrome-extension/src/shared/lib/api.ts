@@ -183,7 +183,7 @@ export const userWalletApi = {
     }),
 
   activate: (id: number) =>
-    request<any>(`/api/v1/wallets/${id}/activate`, { method: "PATCH" }),
+    request<any>(`/api/v1/wallets/${id}/activate`, { method: "PATCH", body: JSON.stringify({}) }),
 
   rename: (id: number, name: string) =>
     request<any>(`/api/v1/wallets/${id}`, {

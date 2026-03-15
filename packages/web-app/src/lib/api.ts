@@ -123,13 +123,7 @@ export const userWalletApi = {
     }),
 
   activate: (id: number) =>
-    request<any>(`/api/v1/wallets/${id}/activate`, { method: "PATCH" }),
-
-  rename: (id: number, name: string) =>
-    request<any>(`/api/v1/wallets/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ name }),
-    }),
+    request<any>(`/api/v1/wallets/${id}/activate`, { method: "PATCH", body: JSON.stringify({}) }),
 
   remove: (id: number) =>
     request<any>(`/api/v1/wallets/${id}`, { method: "DELETE" }),
