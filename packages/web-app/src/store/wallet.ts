@@ -130,34 +130,44 @@ export const useWalletStore = create<WalletState>()(
 
       // ─── Create ───────────────────────────────
       createWallet: async (name, pin) => {
+        const trimmedName = (name || `Wallet ${get().accounts.length + 1}`).trim();
+        if (get().accounts.some((a) => a.name.toLowerCase() === trimmedName.toLowerCase())) {
+          throw new Error("A wallet with this name already exists");
+        }
+
         const { publicKey, secretKey } = generateKeypair();
         const encrypted = await encryptSecret(secretKey, pin);
 
-        const account: WalletAccount = {
-          id: generateId(),
-          name: name || `Wallet ${get().accounts.length + 1}`,
-          publicKey,
-          encryptedSecret: encrypted,
-          createdAt: Date.now(),
-        };
-
-        // Fund on testnet
-        try {
-          await fundTestnet(publicKey);
-        } catch {}
-
-        // Sync to server
+        // Sync to server FIRST — if it fails with 409, stop
+        let serverId: number | undefined;
         try {
           const serverWallet = await userWalletApi.add({
-            name: account.name,
+            name: trimmedName,
             publicKey,
             encryptedSecret: encrypted,
             network: get().network,
           });
-          account.serverId = serverWallet.id;
-        } catch (err) {
+          serverId = serverWallet.id;
+        } catch (err: any) {
+          if (err.message?.includes("already exists")) {
+            throw new Error("A wallet with this name already exists");
+          }
+          // Non-name error — continue without server sync
           console.error("Failed to sync wallet to server:", err);
         }
+
+        try {
+          await fundTestnet(publicKey);
+        } catch {}
+
+        const account: WalletAccount = {
+          id: generateId(),
+          serverId,
+          name: trimmedName,
+          publicKey,
+          encryptedSecret: encrypted,
+          createdAt: Date.now(),
+        };
 
         set((state) => ({
           accounts: [...state.accounts, account],
@@ -231,23 +241,15 @@ export const useWalletStore = create<WalletState>()(
       removeAccount: (accountId) => {
         const { accounts, activeAccountId } = get();
         const account = accounts.find((a) => a.id === accountId);
-
-        // Delete from server
         if (account?.serverId) {
           userWalletApi.remove(account.serverId).catch(console.error);
         }
-
         const remaining = accounts.filter((a) => a.id !== accountId);
         let newActiveId = activeAccountId;
         if (activeAccountId === accountId) {
           newActiveId = remaining.length > 0 ? remaining[0].id : null;
         }
-        set({
-          accounts: remaining,
-          activeAccountId: newActiveId,
-          isUnlocked: false,
-          _secretKey: null,
-        });
+        set({ accounts: remaining, activeAccountId: newActiveId, isUnlocked: false, _secretKey: null });
       },
 
       // ─── Rename ───────────────────────────────

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useWalletStore } from "./wallet";
 
 const API_BASE = "https://ammawallet.com";
 
@@ -15,18 +16,14 @@ export interface UserProfile {
 }
 
 interface AuthState {
-  // JWT auth
   user: UserProfile | null;
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
-
-  // Local PIN
   pinHash: string | null;
   hasPin: boolean;
   isLocked: boolean;
 
-  // Actions — JWT
   register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -34,7 +31,6 @@ interface AuthState {
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
   refreshSession: () => Promise<boolean>;
 
-  // Actions — PIN
   setPin: (pin: string) => void;
   verifyPin: (pin: string) => boolean;
   lock: () => void;
@@ -42,14 +38,12 @@ interface AuthState {
   clearPin: () => void;
 }
 
-// Simple hash for local PIN (not sent to server)
 function hashPin(pin: string): string {
   let hash = 0;
   for (let i = 0; i < pin.length; i++) {
     const char = pin.charCodeAt(i);
     hash = ((hash << 5) - hash + char) | 0;
   }
-  // Add a second pass for slightly better distribution
   const str = pin + "stellar-wallet-pin-salt" + pin;
   let hash2 = 0;
   for (let i = 0; i < str.length; i++) {
@@ -106,9 +100,10 @@ export const useAuthStore = create<AuthState>()(
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
           isAuthenticated: true,
-          // If user already has a PIN, stay locked so they must enter it
           isLocked: get().hasPin,
         });
+        // Sync wallets from server
+        await useWalletStore.getState().syncFromServer(data.accessToken);
       },
 
       logout: async () => {
@@ -120,9 +115,8 @@ export const useAuthStore = create<AuthState>()(
               body: JSON.stringify({ refreshToken }),
             });
           }
-        } catch {
-          // Ignore logout errors
-        }
+        } catch {}
+        useWalletStore.getState().logout();
         set({
           user: null,
           accessToken: null,
@@ -143,15 +137,18 @@ export const useAuthStore = create<AuthState>()(
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           set({ user: data, isAuthenticated: true });
+          // Sync wallets from server
+          await useWalletStore.getState().syncFromServer(accessToken);
         } catch {
-          // Token expired — try refresh
           const refreshed = await refreshSession();
           if (refreshed) {
             try {
+              const token = get().accessToken!;
               const data = await apiRequest("/api/v1/auth/me", {
-                headers: { Authorization: `Bearer ${get().accessToken}` },
+                headers: { Authorization: `Bearer ${token}` },
               });
               set({ user: data, isAuthenticated: true });
+              await useWalletStore.getState().syncFromServer(token);
             } catch {
               set({ isAuthenticated: false, accessToken: null, refreshToken: null, user: null });
             }
@@ -194,7 +191,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // PIN methods
       setPin: (pin) => {
         set({ pinHash: hashPin(pin), hasPin: true, isLocked: false });
       },
